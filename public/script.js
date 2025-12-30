@@ -1,29 +1,56 @@
 let currentRole = 'general';
-let isAutoVoice = true; // Автоматическое включение микрофона
+let isAutoVoice = false; 
 const chatBox = document.getElementById('chat-box');
 const userInput = document.getElementById('user-input');
 const token = localStorage.getItem('token');
 
 if (!token) window.location.href = 'login.html';
 
-// 1. Управление меню (для телефона)
-function toggleSidebar() {
-    document.getElementById('sidebar').classList.toggle('open');
-}
+// 1. При старте загружаем историю для 'general'
+window.onload = () => selectRole('general', document.querySelector('.menu-item.active'));
 
-// 2. Выбор роли
-function selectRole(role, element) {
+function toggleSidebar() { document.getElementById('sidebar').classList.toggle('open'); }
+
+// 2. Выбор роли и ЗАГРУЗКА ИСТОРИИ
+async function selectRole(role, element) {
     currentRole = role;
-    document.querySelectorAll('.menu-item').forEach(el => el.classList.remove('active'));
-    element.classList.add('active');
-    document.getElementById('current-role-title').innerText = element.innerText;
-    document.getElementById('sidebar').classList.remove('open'); // Закрыть меню на телефоне
     
-    chatBox.innerHTML = '';
+    // Визуал меню
+    if (element) {
+        document.querySelectorAll('.menu-item').forEach(el => el.classList.remove('active'));
+        element.classList.add('active');
+        document.getElementById('current-role-title').innerText = element.innerText;
+    }
+    document.getElementById('sidebar').classList.remove('open');
+    
+    chatBox.innerHTML = ''; // Очищаем экран
+
+    // Если это фото-режим, просто пишем инструкцию
     if(role === 'photo') {
-        addMessage("📸 Режим генератора включен! Опиши, что нарисовать (например: 'Кот в космосе, киберпанк').", 'ai');
-    } else {
-        addMessage(`Режим "${element.innerText}" готов.`, 'ai');
+        addMessage("📸 Режим генерации. Опиши картинку, и я её нарисую.", 'ai');
+        return;
+    }
+
+    // ЗАГРУЗКА ИСТОРИИ С СЕРВЕРА
+    try {
+        const res = await fetch('/api/history', {
+            headers: { 'Authorization': token }
+        });
+        const allChats = await res.json();
+        
+        // Ищем чат для текущей роли
+        const roleChat = allChats.find(c => c.role === role);
+        
+        if (roleChat && roleChat.messages.length > 0) {
+            // Если есть история - показываем
+            roleChat.messages.forEach(msg => addMessage(msg.text, msg.sender, false)); // false = не скроллить каждый раз
+            scrollToBottom();
+        } else {
+            // Если нет - приветствие
+            addMessage(`Режим "${role}" активирован. История пуста, начни общение!`, 'ai');
+        }
+    } catch (e) {
+        console.error("Ошибка истории", e);
     }
 }
 
@@ -35,127 +62,98 @@ async function sendMessage() {
     addMessage(text, 'user');
     userInput.value = '';
 
-    // --- ЛОГИКА ГЕНЕРАЦИИ ФОТО ---
+    // ЛОГИКА ФОТО (С КНОПКОЙ СКАЧАТЬ)
     if (currentRole === 'photo') {
-        addMessage("Генерирую изображение...", 'ai');
-        // Используем Pollinations AI (бесплатно, работает через URL)
+        addMessage("Генерирую...", 'ai');
         const encodedPrompt = encodeURIComponent(text);
-        const imageUrl = `https://image.pollinations.ai/prompt/${encodedPrompt}?width=1024&height=1024&nologo=true`;
+        // Используем random seed чтобы картинки были разными
+        const randomSeed = Math.floor(Math.random() * 10000); 
+        const imageUrl = `https://image.pollinations.ai/prompt/${encodedPrompt}?width=1024&height=1024&seed=${randomSeed}&nologo=true`;
         
-        // Создаем задержку для вида
         setTimeout(() => {
             const div = document.createElement('div');
             div.classList.add('message', 'ai');
-            div.innerHTML = `<img src="${imageUrl}" class="chat-image" alt="Generated Image">`;
+            // Добавляем картинку И кнопку скачивания
+            div.innerHTML = `
+                <img src="${imageUrl}" class="chat-image" alt="Art">
+                <a href="${imageUrl}" target="_blank" class="download-btn"><i class="fas fa-download"></i> Открыть и Скачать</a>
+            `;
             chatBox.appendChild(div);
-            chatBox.scrollTop = chatBox.scrollHeight;
-            speakText("Изображение готово.");
+            scrollToBottom();
+            speakText("Готово!");
         }, 1500);
         return;
     }
 
-    // --- ЛОГИКА ТЕКСТА (GEMINI) ---
+    // ЛОГИКА ТЕКСТА
     try {
         const response = await fetch('/api/chat', {
             method: 'POST',
-            headers: { 
-                'Content-Type': 'application/json',
-                'Authorization': token 
-            },
+            headers: { 'Content-Type': 'application/json', 'Authorization': token },
             body: JSON.stringify({ message: text, role: currentRole })
         });
-
         const data = await response.json();
-        const botText = data.text;
-
-        addMessage(botText, 'ai');
-        speakText(botText); // Озвучка + Авто-старт микрофона
-
+        addMessage(data.text, 'ai');
+        speakText(data.text);
     } catch (error) {
-        addMessage("Ошибка соединения...", 'ai');
+        addMessage("Ошибка сети...", 'ai');
     }
 }
 
-function addMessage(text, sender) {
+function addMessage(text, sender, autoScroll = true) {
     const div = document.createElement('div');
     div.classList.add('message', sender);
+    // Превращаем **жирный** в <b>
     let formattedText = text.replace(/\*\*(.*?)\*\*/g, '<b>$1</b>');
+    // Превращаем переносы строк в <br>
+    formattedText = formattedText.replace(/\n/g, '<br>');
     div.innerHTML = formattedText;
     chatBox.appendChild(div);
+    if (autoScroll) scrollToBottom();
+}
+
+function scrollToBottom() {
     chatBox.scrollTop = chatBox.scrollHeight;
 }
 
-// 4. ОЗВУЧКА + АВТО-СЛУШАНИЕ
+// ОЗВУЧКА
 function speakText(text) {
     window.speechSynthesis.cancel();
-    const utterance = new SpeechSynthesisUtterance(text);
-    
-    const cleanText = text.replace(/[*#_]/g, ''); 
-    utterance.text = cleanText;
-
+    const utterance = new SpeechSynthesisUtterance(text.replace(/[*#_]/g, ''));
     const isTajik = /[ҷҳӯғӣқ]/i.test(text);
     const voices = window.speechSynthesis.getVoices();
-    
     if (isTajik) {
         const persianVoice = voices.find(v => v.lang.includes('fa') || v.lang.includes('ir'));
         utterance.voice = persianVoice || null;
         utterance.lang = 'fa-IR';
-    } else {
-        utterance.lang = 'ru-RU';
-    }
-
-    // САМОЕ ВАЖНОЕ: Когда бот закончил говорить — включаем микрофон
-    utterance.onend = function() {
-        if (isAutoVoice) {
-            startListening();
-        }
-    };
-
+    } else { utterance.lang = 'ru-RU'; }
+    
+    utterance.onend = () => { if (isAutoVoice) startListening(); };
     window.speechSynthesis.speak(utterance);
 }
 
-// 5. ГОЛОСОВОЙ ВВОД (Web Speech API)
+// МИКРОФОН
 const voiceBtn = document.getElementById('voice-btn');
-const autoVoiceIcon = document.getElementById('auto-voice-icon');
 const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
 let recognition;
 
 if (SpeechRecognition) {
     recognition = new SpeechRecognition();
     recognition.lang = 'ru-RU';
-    recognition.continuous = false; // Останавливается после фразы
-
-    recognition.onstart = () => {
-        voiceBtn.classList.add('recording');
-        autoVoiceIcon.style.color = '#D4AF37'; // Золотой значок
-    };
-
-    recognition.onend = () => {
-        voiceBtn.classList.remove('recording');
-        autoVoiceIcon.style.color = '#555';
-    };
-
-    recognition.onresult = (event) => {
-        const transcript = event.results[0][0].transcript;
-        userInput.value = transcript;
+    recognition.continuous = false;
+    recognition.onstart = () => voiceBtn.classList.add('recording');
+    recognition.onend = () => voiceBtn.classList.remove('recording');
+    recognition.onresult = (e) => {
+        userInput.value = e.results[0][0].transcript;
         sendMessage();
     };
-
     voiceBtn.addEventListener('click', () => {
         if (voiceBtn.classList.contains('recording')) recognition.stop();
         else recognition.start();
     });
 }
 
-// Функция для авто-запуска (вызываем после речи бота)
-function startListening() {
-    if (recognition && !voiceBtn.classList.contains('recording')) {
-        setTimeout(() => recognition.start(), 500); // Пауза 0.5 сек перед включением
-    }
-}
+function startListening() { if (recognition) setTimeout(() => recognition.start(), 500); }
 
-// Enter для отправки
-userInput.addEventListener('keypress', (e) => {
-    if (e.key === 'Enter') sendMessage();
-});
+userInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') sendMessage(); });
 document.getElementById('send-btn').addEventListener('click', sendMessage);
