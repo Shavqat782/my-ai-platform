@@ -11,12 +11,10 @@ app.use(express.json());
 app.use(cors());
 app.use(express.static('public'));
 
-// --- 1. ПОДКЛЮЧЕНИЕ К БАЗЕ ДАННЫХ ---
 mongoose.connect(process.env.MONGO_URI)
     .then(() => console.log('✅ MongoDB подключена'))
     .catch(err => console.error('❌ Ошибка MongoDB:', err));
 
-// Схема пользователя (Логин, Пароль, История чатов)
 const UserSchema = new mongoose.Schema({
     username: { type: String, required: true, unique: true },
     password: { type: String, required: true },
@@ -27,7 +25,6 @@ const UserSchema = new mongoose.Schema({
 });
 const User = mongoose.model('User', UserSchema);
 
-// --- 2. РОТАЦИЯ КЛЮЧЕЙ ---
 const apiKeys = [
     process.env.KEY1, process.env.KEY2, process.env.KEY3,
     process.env.KEY4, process.env.KEY5, process.env.KEY6
@@ -37,55 +34,73 @@ function getClient() {
     return new GoogleGenerativeAI(apiKeys[Math.floor(Math.random() * apiKeys.length)]);
 }
 
-// --- 3. НАСТРОЙКИ АССИСТЕНТОВ ---
-const baseRule = "У тебя более 10 лет опыта. Ответы краткие и ясные. Если просят подробнее - расписывай. Поддерживай голосовой формат.";
+// --- НОВЫЕ МОЩНЫЕ ИНСТРУКЦИИ ---
+const commonRule = "Отвечай кратко и ясно (3-4 предложения), пока клиент не попросит 'подробнее'. Если вопрос на таджикском — отвечай на таджикском (кириллица). Если на русском — на русском.";
+
 const assistants = {
-    islam: `Ты — Муфтий (20 лет опыта, Мекка). Ответы СТРОГО по Корану и Хадисам. На таджикские вопросы отвечай таджикской кириллицей. ${baseRule}`,
-    marketer: `Ты — Маркетолог. ${baseRule}`,
-    smm: `Ты — SMM эксперт. ${baseRule}`,
-    finance: `Ты — Финансист. ${baseRule}`,
-    programmer: `Ты — Senior Developer. ${baseRule}`,
-    psychologist: `Ты — Психолог. ${baseRule}`,
-    tutor: `Ты — Учитель языков. ${baseRule}`,
-    lawyer: `Ты — Юрист. ${baseRule}`,
-    hr: `Ты — HR. ${baseRule}`,
+    // 1. ИСЛАМ (Строгий Муфтий)
+    islam: `Ты — Муфтий с 20-летним опытом обучения в Мекке и Медине. Твоя методология строга:
+    1. Сначала ищи ответ в Священном Коране.
+    2. Если нет, обратись к Достоверным Хадисам (Сунна).
+    3. Если нет, приведи мнения Сподвижников (Сахабов).
+    4. Если нет, приведи мнения Праведных предшественников (Саляф ас-Салих).
+    Никакой отсебятины и современной философии. Давай ссылки на источники. ${commonRule}`,
+
+    // 2. ПРОГРАММИСТ (Разрешено писать много кода)
+    programmer: `Ты — Senior Fullstack Developer с 10-летним опытом работы в Google и Amazon. 
+    Твоя задача — писать ИДЕАЛЬНЫЙ, РАБОЧИЙ и ПОЛНЫЙ код.
+    ВАЖНО: Если тебя просят написать код — пиши его целиком, от начала до конца, не сокращай.
+    Для текстовых объяснений используй правило краткости: 3-4 предложения.`,
+
+    // 3. МАРКЕТОЛОГ
+    marketer: `Ты — CMO (Директор по маркетингу) с 10-летним опытом в Fortune 500. Ты эксперт в стратегиях, воронках и психологии продаж. ${commonRule}`,
+
+    // 4. SMM
+    smm: `Ты — Топ SMM-стратег с 10-летним опытом. Ты знаешь алгоритмы Instagram, TikTok, YouTube наизусть. ${commonRule}`,
+
+    // 5. ФИНАНСИСТ
+    finance: `Ты — Инвестиционный банкир с 10-летним стажем на Wall Street. Эксперт в крипте, акциях и управлении капиталом. ${commonRule}`,
+
+    // 6. ПСИХОЛОГ
+    psychologist: `Ты — Клинический психолог с 10-летним стажем. Твой подход — когнитивно-поведенческая терапия. Будь эмпатичным. ${commonRule}`,
+
+    // 7. ЯЗЫКИ
+    tutor: `Ты — Полиглот-лингвист с 10-летним стажем. Ты знаешь методики спецслужб для быстрого изучения языков. ${commonRule}`,
+
+    // 8. ЮРИСТ
+    lawyer: `Ты — Международный адвокат с 10-летним опытом. Ты видишь подводные камни в любых договорах. ${commonRule}`,
+
+    // 9. HR
+    hr: `Ты — HR-директор глобальной корпорации (10 лет опыта). Ты знаешь, как нанимать лучших и как проходить собеседования. ${commonRule}`,
+
+    // 10. ФОТО
     photo: `IMAGE_MODE`,
-    general: `Ты — Умный собеседник. ${baseRule}`
+
+    // 11. ОБЩИЙ
+    general: `Ты — Эрудит с энциклопедическими знаниями. ${commonRule}`
 };
 
-// --- 4. АВТОРИЗАЦИЯ (РЕГИСТРАЦИЯ И ВХОД) ---
-
-// Регистрация
+// ... (Дальше стандартный код авторизации и чата, он не меняется) ...
 app.post('/api/register', async (req, res) => {
     try {
         const { username, password } = req.body;
         const hashedPassword = await bcrypt.hash(password, 10);
         const user = new User({ username, password: hashedPassword, chats: [] });
         await user.save();
-        res.status(201).json({ message: "Пользователь создан!" });
-    } catch (error) {
-        res.status(400).json({ error: "Ошибка регистрации. Возможно, имя занято." });
-    }
+        res.status(201).json({ message: "ОК" });
+    } catch (e) { res.status(400).json({ error: "Ошибка" }); }
 });
 
-// Вход
 app.post('/api/login', async (req, res) => {
     try {
         const { username, password } = req.body;
         const user = await User.findOne({ username });
-        if (!user) return res.status(400).json({ error: "Пользователь не найден" });
-
-        const isMatch = await bcrypt.compare(password, user.password);
-        if (!isMatch) return res.status(400).json({ error: "Неверный пароль" });
-
+        if (!user || !(await bcrypt.compare(password, user.password))) return res.status(400).json({ error: "Неверно" });
         const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET);
         res.json({ token, username });
-    } catch (error) {
-        res.status(500).json({ error: "Ошибка входа" });
-    }
+    } catch (e) { res.status(500).json({ error: "Ошибка" }); }
 });
 
-// Middleware для проверки токена (Защита)
 const auth = (req, res, next) => {
     const token = req.header('Authorization');
     if (!token) return res.status(401).json({ error: "Нет доступа" });
@@ -93,19 +108,14 @@ const auth = (req, res, next) => {
         const decoded = jwt.verify(token, process.env.JWT_SECRET);
         req.userId = decoded.userId;
         next();
-    } catch (error) {
-        res.status(401).json({ error: "Неверный токен" });
-    }
+    } catch (e) { res.status(401).json({ error: "Токен неверен" }); }
 };
 
-// --- 5. ЧАТ С СОХРАНЕНИЕМ ИСТОРИИ ---
 app.post('/api/chat', auth, async (req, res) => {
     try {
         const { message, role } = req.body;
         const user = await User.findById(req.userId);
-
-        // 1. Сохраняем сообщение пользователя
-        // Ищем историю для этой роли или создаем новую
+        
         let chatHistory = user.chats.find(c => c.role === role);
         if (!chatHistory) {
             user.chats.push({ role, messages: [] });
@@ -113,32 +123,31 @@ app.post('/api/chat', auth, async (req, res) => {
         }
         chatHistory.messages.push({ sender: 'user', text: message, timestamp: new Date() });
 
-        // 2. Генерация ответа
-        if (role === 'photo') return res.json({ text: "Генерация фото скоро..." });
+        if (role === 'photo') return res.json({ text: "Генерация..." });
 
         const genAI = getClient();
-        const model = genAI.getGenerativeModel({ model: "gemini-flash-latest", systemInstruction: assistants[role] || assistants.general });
-        
+        const model = genAI.getGenerativeModel({ 
+            model: "gemini-flash-latest",
+            systemInstruction: assistants[role] || assistants.general
+        });
+
         const result = await model.generateContent(message);
         const text = result.response.text();
 
-        // 3. Сохраняем ответ бота
         chatHistory.messages.push({ sender: 'ai', text: text, timestamp: new Date() });
         await user.save();
 
         res.json({ text });
-
-    } catch (error) {
-        console.error(error);
+    } catch (e) {
+        console.error(e);
         res.status(500).json({ text: "Ошибка сервера" });
     }
 });
 
-// Получение истории (чтобы загружать старые сообщения)
 app.get('/api/history', auth, async (req, res) => {
     const user = await User.findById(req.userId);
     res.json(user.chats);
 });
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`🚀 Сервер работает на порту ${PORT}`));
+app.listen(PORT, () => console.log(`🚀 Сервер на порту ${PORT}`));

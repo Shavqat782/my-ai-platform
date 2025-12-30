@@ -14,10 +14,10 @@
             <div class="brand">👑 Royal AI</div>
             <div class="menu-item active" onclick="selectRole('general', this)"><i class="fas fa-comments"></i> Общий чат</div>
             <div class="menu-item" onclick="selectRole('islam', this)"><i class="fas fa-mosque"></i> Ислам (Муфтий)</div>
+            <div class="menu-item" onclick="selectRole('programmer', this)"><i class="fas fa-code"></i> Программист</div>
             <div class="menu-item" onclick="selectRole('marketer', this)"><i class="fas fa-bullhorn"></i> Маркетолог</div>
             <div class="menu-item" onclick="selectRole('smm', this)"><i class="fas fa-hashtag"></i> SMM & Тренды</div>
             <div class="menu-item" onclick="selectRole('finance', this)"><i class="fas fa-chart-line"></i> Финансист</div>
-            <div class="menu-item" onclick="selectRole('programmer', this)"><i class="fas fa-code"></i> Программист</div>
             <div class="menu-item" onclick="selectRole('psychologist', this)"><i class="fas fa-brain"></i> Психолог</div>
             <div class="menu-item" onclick="selectRole('tutor', this)"><i class="fas fa-language"></i> Языки</div>
             <div class="menu-item" onclick="selectRole('lawyer', this)"><i class="fas fa-balance-scale"></i> Юрист</div>
@@ -31,17 +31,14 @@
                     <i class="fas fa-bars menu-toggle" onclick="toggleSidebar()"></i>
                     <h3 id="current-role-title">Общий чат</h3>
                 </div>
-                <div style="display: flex; align-items: center; gap: 10px;">
-                    <span style="font-size: 0.8rem; color: #aaa;">Continuous Mode</span>
-                    <i id="auto-voice-icon" class="fas fa-headset" style="color: #555;"></i>
+                
+                <div class="header-controls">
+                    <i class="fas fa-volume-mute toggle-btn" id="sound-toggle" onclick="toggleSound()" title="Вкл/Выкл Озвучку"></i>
+                    <i class="fas fa-sun toggle-btn" id="theme-toggle" onclick="toggleTheme()" title="Светлая/Темная тема"></i>
                 </div>
             </div>
 
-            <div class="messages" id="chat-box">
-                <div class="message ai">
-                    Ас-саляму алейкум, Абдулла! Я готов к работе. Выбери режим.
-                </div>
-            </div>
+            <div class="messages" id="chat-box"></div>
 
             <div class="input-area">
                 <button id="voice-btn" class="icon-btn"><i class="fas fa-microphone"></i></button>
