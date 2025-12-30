@@ -1,29 +1,33 @@
-const token = localStorage.getItem('token');
-if (!token) {
-    window.location.href = 'login.html';
-}
-// ... дальше идет твой старый код let currentRole ...
 let currentRole = 'general';
+let isAutoVoice = true; // Автоматическое включение микрофона
 const chatBox = document.getElementById('chat-box');
 const userInput = document.getElementById('user-input');
+const token = localStorage.getItem('token');
 
-// 1. Выбор ассистента
-function selectRole(role, element) {
-    currentRole = role;
-    
-    // Меняем активную кнопку в меню
-    document.querySelectorAll('.menu-item').forEach(el => el.classList.remove('active'));
-    element.classList.add('active');
-    
-    // Меняем заголовок
-    document.getElementById('current-role-title').innerText = element.innerText;
-    
-    // Очищаем чат или добавляем приветствие
-    chatBox.innerHTML = '';
-    addMessage(`Режим "${element.innerText}" активирован. Готов к работе!`, 'ai');
+if (!token) window.location.href = 'login.html';
+
+// 1. Управление меню (для телефона)
+function toggleSidebar() {
+    document.getElementById('sidebar').classList.toggle('open');
 }
 
-// 2. Отправка сообщения
+// 2. Выбор роли
+function selectRole(role, element) {
+    currentRole = role;
+    document.querySelectorAll('.menu-item').forEach(el => el.classList.remove('active'));
+    element.classList.add('active');
+    document.getElementById('current-role-title').innerText = element.innerText;
+    document.getElementById('sidebar').classList.remove('open'); // Закрыть меню на телефоне
+    
+    chatBox.innerHTML = '';
+    if(role === 'photo') {
+        addMessage("📸 Режим генератора включен! Опиши, что нарисовать (например: 'Кот в космосе, киберпанк').", 'ai');
+    } else {
+        addMessage(`Режим "${element.innerText}" готов.`, 'ai');
+    }
+}
+
+// 3. Отправка сообщения
 async function sendMessage() {
     const text = userInput.value.trim();
     if (!text) return;
@@ -31,12 +35,32 @@ async function sendMessage() {
     addMessage(text, 'user');
     userInput.value = '';
 
+    // --- ЛОГИКА ГЕНЕРАЦИИ ФОТО ---
+    if (currentRole === 'photo') {
+        addMessage("Генерирую изображение...", 'ai');
+        // Используем Pollinations AI (бесплатно, работает через URL)
+        const encodedPrompt = encodeURIComponent(text);
+        const imageUrl = `https://image.pollinations.ai/prompt/${encodedPrompt}?width=1024&height=1024&nologo=true`;
+        
+        // Создаем задержку для вида
+        setTimeout(() => {
+            const div = document.createElement('div');
+            div.classList.add('message', 'ai');
+            div.innerHTML = `<img src="${imageUrl}" class="chat-image" alt="Generated Image">`;
+            chatBox.appendChild(div);
+            chatBox.scrollTop = chatBox.scrollHeight;
+            speakText("Изображение готово.");
+        }, 1500);
+        return;
+    }
+
+    // --- ЛОГИКА ТЕКСТА (GEMINI) ---
     try {
         const response = await fetch('/api/chat', {
             method: 'POST',
             headers: { 
                 'Content-Type': 'application/json',
-                'Authorization': token // <--- ВОТ ЭТО ВАЖНО
+                'Authorization': token 
             },
             body: JSON.stringify({ message: text, role: currentRole })
         });
@@ -45,98 +69,93 @@ async function sendMessage() {
         const botText = data.text;
 
         addMessage(botText, 'ai');
-        speakText(botText); // ОЗВУЧКА
+        speakText(botText); // Озвучка + Авто-старт микрофона
 
     } catch (error) {
-        addMessage("Ошибка соединения с сервером...", 'ai');
+        addMessage("Ошибка соединения...", 'ai');
     }
 }
 
-// 3. Функция добавления сообщения в чат
 function addMessage(text, sender) {
     const div = document.createElement('div');
     div.classList.add('message', sender);
-    
-    // Преобразуем Markdown (жирный текст) в HTML теги, если нужно
-    // Простая замена **текст** на <b>текст</b>
     let formattedText = text.replace(/\*\*(.*?)\*\*/g, '<b>$1</b>');
     div.innerHTML = formattedText;
-    
     chatBox.appendChild(div);
-    chatBox.scrollTop = chatBox.scrollHeight; // Автопрокрутка вниз
+    chatBox.scrollTop = chatBox.scrollHeight;
 }
 
-// 4. УМНАЯ ОЗВУЧКА (Таджикский -> Персидский голос)
+// 4. ОЗВУЧКА + АВТО-СЛУШАНИЕ
 function speakText(text) {
-    // Останавливаем, если что-то уже говорит
     window.speechSynthesis.cancel();
-
     const utterance = new SpeechSynthesisUtterance(text);
     
-    // Очистка от спецсимволов для чтения
-    utterance.text = text.replace(/[*#_]/g, ''); 
+    const cleanText = text.replace(/[*#_]/g, ''); 
+    utterance.text = cleanText;
 
-    // Проверка на таджикские буквы (или кириллицу в таджикском контексте)
     const isTajik = /[ҷҳӯғӣқ]/i.test(text);
-
     const voices = window.speechSynthesis.getVoices();
     
     if (isTajik) {
-        // Ищем персидский голос (Farsi)
         const persianVoice = voices.find(v => v.lang.includes('fa') || v.lang.includes('ir'));
-        if (persianVoice) {
-            utterance.voice = persianVoice;
-            utterance.lang = 'fa-IR';
-            utterance.rate = 0.9; // Чуть помедленнее для четкости
-        } else {
-            // Если персидского нет, используем русский
-            utterance.lang = 'ru-RU';
-        }
+        utterance.voice = persianVoice || null;
+        utterance.lang = 'fa-IR';
     } else {
-        // Если текст русский или английский
-        utterance.lang = 'ru-RU'; 
+        utterance.lang = 'ru-RU';
     }
+
+    // САМОЕ ВАЖНОЕ: Когда бот закончил говорить — включаем микрофон
+    utterance.onend = function() {
+        if (isAutoVoice) {
+            startListening();
+        }
+    };
 
     window.speechSynthesis.speak(utterance);
 }
 
-// 5. ГОЛОСОВОЙ ВВОД (Микрофон)
+// 5. ГОЛОСОВОЙ ВВОД (Web Speech API)
 const voiceBtn = document.getElementById('voice-btn');
+const autoVoiceIcon = document.getElementById('auto-voice-icon');
 const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+let recognition;
 
 if (SpeechRecognition) {
-    const recognition = new SpeechRecognition();
-    recognition.lang = 'ru-RU'; // По умолчанию слушает русский/таджикский (акцент понимает)
-    
-    voiceBtn.addEventListener('click', () => {
-        if (voiceBtn.classList.contains('recording')) {
-            recognition.stop();
-        } else {
-            recognition.start();
-        }
-    });
+    recognition = new SpeechRecognition();
+    recognition.lang = 'ru-RU';
+    recognition.continuous = false; // Останавливается после фразы
 
     recognition.onstart = () => {
         voiceBtn.classList.add('recording');
+        autoVoiceIcon.style.color = '#D4AF37'; // Золотой значок
     };
 
     recognition.onend = () => {
         voiceBtn.classList.remove('recording');
+        autoVoiceIcon.style.color = '#555';
     };
 
     recognition.onresult = (event) => {
         const transcript = event.results[0][0].transcript;
         userInput.value = transcript;
-        sendMessage(); // Сразу отправляем, как договорили
+        sendMessage();
     };
-} else {
-    voiceBtn.style.display = 'none'; // Скрываем кнопку, если браузер не поддерживает
-    console.log("Ваш браузер не поддерживает Web Speech API");
+
+    voiceBtn.addEventListener('click', () => {
+        if (voiceBtn.classList.contains('recording')) recognition.stop();
+        else recognition.start();
+    });
 }
 
-// Отправка по Enter
+// Функция для авто-запуска (вызываем после речи бота)
+function startListening() {
+    if (recognition && !voiceBtn.classList.contains('recording')) {
+        setTimeout(() => recognition.start(), 500); // Пауза 0.5 сек перед включением
+    }
+}
+
+// Enter для отправки
 userInput.addEventListener('keypress', (e) => {
     if (e.key === 'Enter') sendMessage();
 });
-
 document.getElementById('send-btn').addEventListener('click', sendMessage);

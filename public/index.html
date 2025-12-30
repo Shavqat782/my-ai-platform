@@ -3,15 +3,15 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI Super Platform</title>
+    <title>Abdulla AI Premium</title>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
     <div class="container">
-        <div class="sidebar">
-            <h2>🤖 Ассистенты</h2>
+        <div class="sidebar" id="sidebar">
+            <div class="brand">👑 Royal AI</div>
             <div class="menu-item active" onclick="selectRole('general', this)"><i class="fas fa-comments"></i> Общий чат</div>
             <div class="menu-item" onclick="selectRole('islam', this)"><i class="fas fa-mosque"></i> Ислам (Муфтий)</div>
             <div class="menu-item" onclick="selectRole('marketer', this)"><i class="fas fa-bullhorn"></i> Маркетолог</div>
@@ -22,18 +22,24 @@
             <div class="menu-item" onclick="selectRole('tutor', this)"><i class="fas fa-language"></i> Языки</div>
             <div class="menu-item" onclick="selectRole('lawyer', this)"><i class="fas fa-balance-scale"></i> Юрист</div>
             <div class="menu-item" onclick="selectRole('hr', this)"><i class="fas fa-user-tie"></i> HR (Карьера)</div>
-            <div class="menu-item photo-btn" onclick="selectRole('photo', this)"><i class="fas fa-camera"></i> Генератор Фото</div>
+            <div class="menu-item" style="color: #ff758f;" onclick="selectRole('photo', this)"><i class="fas fa-magic"></i> Генерация Фото</div>
         </div>
 
         <div class="main-chat">
             <div class="chat-header">
-                <h3 id="current-role-title">Общий чат</h3>
-                <div class="status-dot"></div>
+                <div style="display:flex; align-items:center;">
+                    <i class="fas fa-bars menu-toggle" onclick="toggleSidebar()"></i>
+                    <h3 id="current-role-title">Общий чат</h3>
+                </div>
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <span style="font-size: 0.8rem; color: #aaa;">Continuous Mode</span>
+                    <i id="auto-voice-icon" class="fas fa-headset" style="color: #555;"></i>
+                </div>
             </div>
 
             <div class="messages" id="chat-box">
                 <div class="message ai">
-                    Приветик! Я готов помочь. Выбери тему слева или просто пиши.
+                    Ас-саляму алейкум, Абдулла! Я готов к работе. Выбери режим.
                 </div>
             </div>
 
