@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Super Platform</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <div class="container">
+        <div class="sidebar">
+            <h2>🤖 Ассистенты</h2>
+            <div class="menu-item active" onclick="selectRole('general', this)"><i class="fas fa-comments"></i> Общий чат</div>
+            <div class="menu-item" onclick="selectRole('islam', this)"><i class="fas fa-mosque"></i> Ислам (Муфтий)</div>
+            <div class="menu-item" onclick="selectRole('marketer', this)"><i class="fas fa-bullhorn"></i> Маркетолог</div>
+            <div class="menu-item" onclick="selectRole('smm', this)"><i class="fas fa-hashtag"></i> SMM & Тренды</div>
+            <div class="menu-item" onclick="selectRole('finance', this)"><i class="fas fa-chart-line"></i> Финансист</div>
+            <div class="menu-item" onclick="selectRole('programmer', this)"><i class="fas fa-code"></i> Программист</div>
+            <div class="menu-item" onclick="selectRole('psychologist', this)"><i class="fas fa-brain"></i> Психолог</div>
+            <div class="menu-item" onclick="selectRole('tutor', this)"><i class="fas fa-language"></i> Языки</div>
+            <div class="menu-item" onclick="selectRole('lawyer', this)"><i class="fas fa-balance-scale"></i> Юрист</div>
+            <div class="menu-item" onclick="selectRole('hr', this)"><i class="fas fa-user-tie"></i> HR (Карьера)</div>
+            <div class="menu-item photo-btn" onclick="selectRole('photo', this)"><i class="fas fa-camera"></i> Генератор Фото</div>
+        </div>
+
+        <div class="main-chat">
+            <div class="chat-header">
+                <h3 id="current-role-title">Общий чат</h3>
+                <div class="status-dot"></div>
+            </div>
+
+            <div class="messages" id="chat-box">
+                <div class="message ai">
+                    Приветик! Я готов помочь. Выбери тему слева или просто пиши.
+                </div>
+            </div>
+
+            <div class="input-area">
+                <button id="voice-btn" class="icon-btn"><i class="fas fa-microphone"></i></button>
+                <input type="text" id="user-input" placeholder="Введите сообщение...">
+                <button id="send-btn" class="send-btn"><i class="fas fa-paper-plane"></i></button>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>

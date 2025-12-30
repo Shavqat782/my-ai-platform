@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Вход в AI Platform</title>
+    <style>
+        body { background-color: #1e1e2e; color: #fff; display: flex; justify-content: center; align-items: center; height: 100vh; font-family: sans-serif; }
+        .box { background: #181825; padding: 40px; border-radius: 15px; width: 300px; text-align: center; }
+        input { width: 100%; padding: 10px; margin: 10px 0; border-radius: 5px; border: none; }
+        button { width: 100%; padding: 10px; background: #89b4fa; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; }
+        .toggle { margin-top: 15px; font-size: 0.9em; cursor: pointer; color: #89b4fa; }
+    </style>
+</head>
+<body>
+    <div class="box">
+        <h2 id="title">Вход</h2>
+        <input type="text" id="username" placeholder="Логин">
+        <input type="password" id="password" placeholder="Пароль">
+        <button onclick="authAction()" id="btn">Войти</button>
+        <p class="toggle" onclick="toggleMode()" id="toggle-text">Нет аккаунта? Регистрация</p>
+    </div>
+
+    <script>
+        let isLogin = true;
+        
+        function toggleMode() {
+            isLogin = !isLogin;
+            document.getElementById('title').innerText = isLogin ? "Вход" : "Регистрация";
+            document.getElementById('btn').innerText = isLogin ? "Войти" : "Создать аккаунт";
+            document.getElementById('toggle-text').innerText = isLogin ? "Нет аккаунта? Регистрация" : "Уже есть аккаунт? Вход";
+        }
+
+        async function authAction() {
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+            const endpoint = isLogin ? '/api/login' : '/api/register';
+
+            const res = await fetch(endpoint, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username, password })
+            });
+
+            const data = await res.json();
+            
+            if (res.ok) {
+                if (isLogin) {
+                    localStorage.setItem('token', data.token); // Сохраняем ключ доступа
+                    window.location.href = 'index.html'; // Перекидываем в чат
+                } else {
+                    alert("Аккаунт создан! Теперь войдите.");
+                    toggleMode();
+                }
+            } else {
+                alert(data.error);
+            }
+        }
+    </script>
+</body>
+</html>
