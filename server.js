@@ -58,7 +58,7 @@ app.post('/api/barcode', async (req, res) => {
 
             if (ings) {
                 // Если есть состав — проверяем через ИИ
-                const model = getClient().getGenerativeModel({ model: "gemini-1.5-flash" });
+                const model = getClient().getGenerativeModel({ model: "gemini-flash-latest" });
                 const aiRes = await model.generateContent([ANALYZE_PROMPT, `Товар: ${name}. Состав: ${ings}`]);
                 const text = aiRes.response.text().replace(/```json|```/g, '').trim();
                 return res.json({ found: true, hasIngredients: true, name, image: img, ...JSON.parse(text) });
