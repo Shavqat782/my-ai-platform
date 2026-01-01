@@ -1,157 +1,74 @@
-@import url('https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Montserrat:wght@400;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700&family=Amiri:wght@700&display=swap');
 
 :root {
-    --primary: #0F5132; /* Изумрудный */
+    --primary: #0F5132; /* Тот самый Изумруд */
     --gold: #D4AF37;    /* Золото */
-    --bg: #F8F9FA;      /* Светлый фон */
-    --text: #212529;
-    --red: #DC3545;
-    --green: #198754;
-    --orange: #FFC107;
+    --bg: #F3F4F6;
+    --white: #ffffff;
+    --red: #c0392b;
+    --green: #27ae60;
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Montserrat', sans-serif; }
+body { background: var(--bg); height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
 
-body {
-    background-color: var(--bg);
-    color: var(--text);
-    height: 100vh; /* Используем vh, на мобильном поправим JS */
-    display: flex;
-    flex-direction: column;
-}
-
-/* Навигация снизу (как в приложениях) */
-.nav-bar {
-    position: fixed;
-    bottom: 0;
-    width: 100%;
-    height: 70px;
-    background: white;
-    display: flex;
-    justify-content: space-around;
-    align-items: center;
-    box-shadow: 0 -2px 10px rgba(0,0,0,0.1);
-    z-index: 1000;
-}
-
-.nav-item {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    color: #aaa;
-    font-size: 0.8rem;
-    cursor: pointer;
-    transition: 0.3s;
-}
-
-.nav-item i { font-size: 1.5rem; margin-bottom: 5px; }
-.nav-item.active { color: var(--primary); transform: translateY(-5px); }
-
-/* Экраны (Вкладки) */
-.screen {
-    flex: 1;
-    display: none;
-    flex-direction: column;
-    padding: 20px;
-    padding-bottom: 90px; /* Отступ для меню */
-    overflow-y: auto;
-}
+/* ЭКРАНЫ */
+.screen { display: none; flex: 1; flex-direction: column; height: 100%; overflow-y: auto; padding-bottom: 80px; }
 .screen.active { display: flex; }
 
-/* Хедеры */
-.header {
-    text-align: center;
-    margin-bottom: 20px;
-}
-.header h1 { color: var(--primary); font-family: 'Amiri', serif; font-size: 2rem; }
-.header p { color: #666; font-size: 0.9rem; }
+/* ЗАГОЛОВКИ */
+.header { padding: 20px; background: var(--white); text-align: center; box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
+.header h1 { color: var(--primary); font-family: 'Amiri', serif; font-size: 1.8rem; }
+.header p { color: #888; font-size: 0.9rem; }
 
-/* 1. ЭКРАН СКАНЕРА */
-.scanner-area {
-    background: #000;
-    border-radius: 20px;
-    height: 350px;
-    position: relative;
-    overflow: hidden;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border: 3px solid var(--gold);
-}
-.scanner-area img { width: 100%; height: 100%; object-fit: cover; }
-.scan-overlay {
-    position: absolute; width: 80%; height: 60%;
-    border: 2px dashed rgba(255,255,255,0.7);
-    border-radius: 10px;
-}
+/* КАРТОЧКА ДНЯ */
+.daily-card { margin: 20px; background: linear-gradient(135deg, var(--primary), #053a22); color: white; padding: 25px; border-radius: 20px; text-align: center; box-shadow: 0 10px 20px rgba(15, 81, 50, 0.3); border: 1px solid var(--gold); }
+.card-top { color: var(--gold); font-size: 0.9rem; text-transform: uppercase; margin-bottom: 15px; }
+.arabic { font-family: 'Amiri', serif; font-size: 1.6rem; margin-bottom: 10px; line-height: 1.6; }
+.translation { font-style: italic; opacity: 0.9; margin-bottom: 10px; }
+.source { font-weight: bold; font-size: 0.8rem; color: var(--gold); }
 
-.btn-scan {
-    margin-top: 20px;
-    background: var(--primary);
-    color: white;
-    border: none;
-    padding: 15px;
-    border-radius: 50px;
-    font-size: 1.1rem;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 10px;
-    cursor: pointer;
-    box-shadow: 0 5px 15px rgba(15, 81, 50, 0.3);
-}
-.btn-scan i { color: var(--gold); }
+/* МЕНЮ */
+.grid-menu { display: flex; gap: 15px; padding: 0 20px; }
+.menu-card { flex: 1; background: var(--white); padding: 20px; border-radius: 15px; text-align: center; box-shadow: 0 5px 15px rgba(0,0,0,0.05); }
+.menu-card i { font-size: 2rem; color: var(--primary); margin-bottom: 10px; }
 
-/* Результат сканирования */
-.result-card {
-    margin-top: 20px;
-    background: white;
-    padding: 20px;
-    border-radius: 15px;
-    box-shadow: 0 5px 15px rgba(0,0,0,0.05);
-    display: none;
-    animation: fadeUp 0.5s;
-}
-.badge { display: inline-block; padding: 5px 15px; border-radius: 20px; color: white; font-weight: bold; margin-bottom: 10px; }
+/* СКАНЕР */
+.scanner-container { padding: 20px; display: flex; flex-direction: column; align-items: center; }
+#reader-wrapper { width: 100%; border-radius: 20px; overflow: hidden; border: 3px solid var(--gold); position: relative; background: black; }
+#reader { width: 100%; }
+.scan-hint { text-align: center; color: #666; margin-top: 10px; font-size: 0.9rem; }
+
+.manual-input { display: flex; gap: 10px; margin-top: 20px; width: 100%; }
+.manual-input input { flex: 1; padding: 12px; border-radius: 10px; border: 1px solid #ddd; outline: none; }
+.manual-input button { padding: 12px 20px; background: var(--gold); border: none; border-radius: 10px; color: white; }
+
+.divider { margin: 20px 0; color: #aaa; font-size: 0.8rem; font-weight: bold; }
+
+.btn-photo { background: var(--primary); color: white; border: none; padding: 15px; width: 100%; border-radius: 50px; font-size: 1rem; display: flex; align-items: center; justify-content: center; gap: 10px; box-shadow: 0 5px 15px rgba(15, 81, 50, 0.3); }
+
+/* ЧАТ */
+.chat-list { flex: 1; padding: 20px; overflow-y: auto; display: flex; flex-direction: column; gap: 15px; }
+.msg { padding: 12px 18px; border-radius: 15px; max-width: 85%; font-size: 0.95rem; line-height: 1.5; }
+.msg-ai { background: var(--white); align-self: flex-start; border-left: 3px solid var(--gold); }
+.msg-user { background: var(--primary); color: white; align-self: flex-end; }
+.chat-input-area { padding: 15px; background: var(--white); display: flex; gap: 10px; }
+.chat-input-area input { flex: 1; padding: 10px 15px; border-radius: 30px; border: 1px solid #ddd; outline: none; }
+.chat-input-area button { width: 40px; height: 40px; border-radius: 50%; background: var(--gold); border: none; color: white; }
+
+/* НИЖНИЙ БАР */
+.navbar { position: fixed; bottom: 0; width: 100%; height: 70px; background: var(--white); display: flex; justify-content: space-around; align-items: center; border-radius: 20px 20px 0 0; box-shadow: 0 -5px 20px rgba(0,0,0,0.05); z-index: 100; }
+.nav-item { display: flex; flex-direction: column; align-items: center; color: #ccc; font-size: 0.7rem; width: 60px; transition: 0.3s; }
+.nav-item i { font-size: 1.4rem; margin-bottom: 5px; }
+.nav-item.active { color: var(--primary); transform: translateY(-5px); }
+.scan-btn-nav .circle { width: 60px; height: 60px; background: var(--primary); border-radius: 50%; display: flex; align-items: center; justify-content: center; position: relative; bottom: 25px; border: 5px solid var(--bg); color: var(--gold); box-shadow: 0 5px 15px rgba(15, 81, 50, 0.4); }
+
+/* МОДАЛКА (Результат) */
+.modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; justify-content: center; align-items: center; padding: 20px; }
+.modal-content { background: white; padding: 30px; border-radius: 20px; text-align: center; width: 100%; max-width: 400px; animation: popUp 0.3s; }
+@keyframes popUp { from { transform: scale(0.8); } to { transform: scale(1); } }
+.badge { display: inline-block; padding: 8px 20px; border-radius: 50px; font-weight: bold; margin-bottom: 15px; color: white; }
 .bg-halal { background: var(--green); }
 .bg-haram { background: var(--red); }
-.bg-mushbooh { background: var(--orange); color: black; }
-
-/* 2. ЭКРАН ЧАТА */
-.chat-box { flex: 1; display: flex; flex-direction: column; gap: 15px; overflow-y: auto; margin-bottom: 15px; }
-.message { max-width: 85%; padding: 12px 18px; border-radius: 15px; font-size: 0.95rem; line-height: 1.5; }
-.msg-ai { background: white; border-top-left-radius: 0; box-shadow: 0 2px 5px rgba(0,0,0,0.05); border-left: 3px solid var(--gold); }
-.msg-user { align-self: flex-end; background: var(--primary); color: white; border-bottom-right-radius: 0; }
-.input-group { display: flex; gap: 10px; }
-.input-group input { flex: 1; padding: 15px; border-radius: 30px; border: 1px solid #ddd; outline: none; }
-.btn-send { width: 50px; height: 50px; border-radius: 50%; background: var(--gold); border: none; color: white; cursor: pointer; }
-
-/* 3. ЭКРАН ДНЯ (ИЛЬМ) */
-.daily-card {
-    background: linear-gradient(135deg, var(--primary), #0a3d25);
-    color: white;
-    padding: 30px;
-    border-radius: 20px;
-    text-align: center;
-    position: relative;
-    overflow: hidden;
-}
-.arabic-text { font-family: 'Amiri', serif; font-size: 1.8rem; margin: 20px 0; line-height: 1.6; color: var(--gold); }
-.translation { font-size: 1rem; font-style: italic; opacity: 0.9; }
-.source { margin-top: 15px; font-weight: bold; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 1px; }
-
-@keyframes fadeUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
-.scan-modes { display: flex; gap: 10px; margin-bottom: 15px; width: 100%; justify-content: center; }
-.mode-btn { padding: 10px 20px; border: 1px solid #ccc; background: white; border-radius: 20px; cursor: pointer; }
-.mode-btn.active { background: var(--primary); color: white; border-color: var(--primary); }
-
-.hint { text-align: center; color: #888; font-size: 0.8rem; margin-top: 10px; }
-
-.manual-input { display: flex; gap: 10px; margin-top: 15px; }
-.manual-input input { flex: 1; padding: 12px; border-radius: 10px; border: 1px solid #ddd; }
-.manual-input button { padding: 12px 20px; background: var(--accent); border: none; border-radius: 10px; color: white; }
-
-/* Стиль для статусов */
-.status-halal { background: #d4edda; color: #155724; padding: 5px 10px; border-radius: 5px; }
-.status-haram { background: #f8d7da; color: #721c24; padding: 5px 10px; border-radius: 5px; }
-.status-mushbooh { background: #fff3cd; color: #856404; padding: 5px 10px; border-radius: 5px; }
+.bg-mushbooh { background: #f39c12; }
+.btn-close { margin-top: 20px; padding: 10px 30px; background: #eee; border: none; border-radius: 20px; font-weight: bold; }

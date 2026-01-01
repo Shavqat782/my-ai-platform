@@ -1,41 +1,36 @@
 let html5QrcodeScanner = null;
-let currentMode = 'barcode';
 
 // ПЕРЕКЛЮЧЕНИЕ ВКЛАДОК
 function switchTab(tab, el) {
-    document.querySelectorAll('.screen').forEach(s => s.style.display = 'none');
-    document.getElementById(`tab-${tab}`).style.display = 'flex';
+    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+    document.getElementById(`tab-${tab}`).classList.add('active');
+    
     document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
-    if(el) el.classList.add('active');
+    if(el) {
+        if(el.classList.contains('scan-btn-nav')) {} else { el.classList.add('active'); }
+    }
 
-    if(tab === 'scan' && currentMode === 'barcode') startScanner();
+    // Запускаем камеру только на вкладке скан
+    if(tab === 'scan') startScanner();
     else stopScanner();
 }
 
-// ПЕРЕКЛЮЧЕНИЕ РЕЖИМОВ (Штрихкод <-> Фото)
-function setMode(mode) {
-    currentMode = mode;
-    document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
-    event.target.classList.add('active'); // Простая подсветка
+// ЗАГРУЗКА ДНЯ
+window.onload = async () => {
+    try {
+        const res = await fetch('/api/daily');
+        const data = await res.json();
+        document.getElementById('daily-arabic').innerText = data.arabic;
+        document.getElementById('daily-text').innerText = data.translation;
+        document.getElementById('daily-source').innerText = data.source;
+    } catch(e){}
+};
 
-    if(mode === 'barcode') {
-        document.getElementById('barcode-area').style.display = 'block';
-        document.getElementById('photo-area').style.display = 'none';
-        startScanner();
-    } else {
-        document.getElementById('barcode-area').style.display = 'none';
-        document.getElementById('photo-area').style.display = 'block';
-        stopScanner();
-    }
-}
-
-// --- ЛОГИКА СКАНЕРА ШТРИХКОДОВ ---
+// --- СКАНЕР ---
 function startScanner() {
-    if(html5QrcodeScanner) return; // Уже запущен
-
+    if(html5QrcodeScanner) return;
     const config = { fps: 10, qrbox: { width: 250, height: 250 } };
     html5QrcodeScanner = new Html5Qrcode("reader");
-    
     html5QrcodeScanner.start({ facingMode: "environment" }, config, onScanSuccess);
 }
 
@@ -48,16 +43,11 @@ function stopScanner() {
     }
 }
 
-// КОГДА ШТРИХКОД НАЙДЕН
-async function onScanSuccess(decodedText, decodedResult) {
-    // Останавливаем сканер, чтобы не пищал 100 раз
-    stopScanner();
-    
-    showResultLoading();
-    
-    // Вставляем цифры в поле (для красоты)
+async function onScanSuccess(decodedText) {
+    stopScanner(); // Пауза
+    showModal('loading');
     document.getElementById('barcode-input').value = decodedText;
-
+    
     try {
         const res = await fetch('/api/barcode', {
             method: 'POST',
@@ -65,113 +55,114 @@ async function onScanSuccess(decodedText, decodedResult) {
             body: JSON.stringify({ code: decodedText })
         });
         const data = await res.json();
-        handleResult(data);
-    } catch (e) {
-        alert("Ошибка сети");
-        startScanner(); // Запускаем снова
-    }
+        
+        if(data.found) {
+            if(data.hasIngredients) {
+                showResult(data);
+            } else {
+                showModal('photo_needed', data.name);
+            }
+        } else {
+            showModal('not_found');
+        }
+    } catch(e) { closeModal(); startScanner(); }
 }
 
-// РУЧНОЙ ПОИСК
 async function manualSearch() {
     const code = document.getElementById('barcode-input').value;
-    if(!code) return alert("Введите цифры!");
-    
-    showResultLoading();
-    const res = await fetch('/api/barcode', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({ code: code })
-    });
-    const data = await res.json();
-    handleResult(data);
+    if(!code) return;
+    onScanSuccess(code);
 }
 
-// ОБРАБОТКА РЕЗУЛЬТАТА (Общая для всех)
-function handleResult(data) {
-    const card = document.getElementById('result-card');
-    const status = document.getElementById('res-status');
-    const name = document.getElementById('res-name');
-    const reason = document.getElementById('res-reason');
-    
-    card.classList.remove('hidden');
-
-    if (data.found === false) {
-        status.className = 'status-badge status-mushbooh';
-        status.innerText = 'НЕ НАЙДЕНО';
-        name.innerText = 'Нет в базе';
-        reason.innerText = 'Попробуйте режим "Фото Состава"';
-        // Переключаем на режим фото, так как штрихкод не помог
-        setTimeout(() => setMode('photo'), 2000);
-        return;
-    }
-
-    if (data.needsPhoto) {
-        status.className = 'status-badge status-mushbooh';
-        status.innerText = 'НУЖНО ФОТО';
-        name.innerText = data.name;
-        reason.innerText = data.reason;
-        return;
-    }
-
-    // Если ИИ дал вердикт
-    if (data.status === 'HALAL') {
-        status.className = 'status-badge status-halal';
-        status.innerText = '✅ ХАЛЯЛЬ';
-    } else if (data.status === 'HARAM') {
-        status.className = 'status-badge status-haram';
-        status.innerText = '⛔ ХАРАМ';
-    } else {
-        status.className = 'status-badge status-mushbooh';
-        status.innerText = '⚠️ СОМНИТЕЛЬНО';
-    }
-    
-    name.innerText = data.product_name || data.name || 'Товар';
-    reason.innerText = data.reason;
-}
-
-// --- ЛОГИКА ФОТО (Как было раньше) ---
+// ФОТО
 const fileInput = document.getElementById('file-input');
-const previewImg = document.getElementById('preview-img');
-let currentImage = null;
-
-fileInput.addEventListener('change', (e) => {
+fileInput.addEventListener('change', async (e) => {
     const file = e.target.files[0];
-    if(file) {
-        const reader = new FileReader();
-        reader.onload = (ev) => {
-            currentImage = ev.target.result;
-            previewImg.src = currentImage;
-            previewImg.style.display = 'block';
-        }
-        reader.readAsDataURL(file);
-    }
+    if(!file) return;
+    
+    const reader = new FileReader();
+    reader.onload = async (ev) => {
+        showModal('loading');
+        try {
+            const res = await fetch('/api/scan-photo', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ image: ev.target.result })
+            });
+            const data = await res.json();
+            showResult(data);
+        } catch(e) { alert('Ошибка'); closeModal(); }
+    };
+    reader.readAsDataURL(file);
 });
 
-async function analyzePhoto() {
-    if(!currentImage) return alert("Сделайте фото!");
-    showResultLoading();
-    try {
-        const res = await fetch('/api/scan-photo', {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({ image: currentImage })
-        });
-        const data = await res.json();
-        handleResult(data); // Используем ту же функцию показа
-    } catch(e) { alert("Ошибка фото"); }
+// МОДАЛКА
+function showModal(type, extraName) {
+    const modal = document.getElementById('result-modal');
+    modal.style.display = 'flex';
+    const badge = document.getElementById('res-badge');
+    const title = document.getElementById('res-title');
+    const text = document.getElementById('res-text');
+    
+    if(type === 'loading') {
+        badge.style.display = 'none';
+        title.innerText = 'Анализ...';
+        text.innerText = 'Проверяем базу и состав...';
+    } else if (type === 'not_found') {
+        badge.className = 'badge bg-mushbooh'; badge.style.display = 'inline-block';
+        badge.innerText = 'НЕ НАЙДЕНО';
+        title.innerText = 'Штрихкод неизвестен';
+        text.innerText = 'Пожалуйста, нажмите "Сфотографировать состав" ниже.';
+    } else if (type === 'photo_needed') {
+        badge.className = 'badge bg-mushbooh'; badge.style.display = 'inline-block';
+        badge.innerText = 'НУЖНО ФОТО';
+        title.innerText = extraName;
+        text.innerText = 'Товар есть в базе, но нет состава. Сфотографируйте этикетку.';
+    }
 }
 
-function showResultLoading() {
-    document.getElementById('result-card').classList.remove('hidden');
-    document.getElementById('res-status').innerText = 'Анализ...';
-    document.getElementById('res-reason').innerText = 'Подождите...';
+function showResult(data) {
+    const modal = document.getElementById('result-modal');
+    modal.style.display = 'flex';
+    const badge = document.getElementById('res-badge');
+    badge.style.display = 'inline-block';
+    
+    if(data.status === 'HALAL') {
+        badge.className = 'badge bg-halal'; badge.innerText = 'ХАЛЯЛЬ';
+    } else if (data.status === 'HARAM') {
+        badge.className = 'badge bg-haram'; badge.innerText = 'ХАРАМ';
+    } else {
+        badge.className = 'badge bg-mushbooh'; badge.innerText = 'СОМНИТЕЛЬНО';
+    }
+    
+    document.getElementById('res-title').innerText = data.name || 'Продукт';
+    document.getElementById('res-text').innerText = data.reason;
 }
 
-function closeResult() {
-    document.getElementById('result-card').classList.add('hidden');
-    if(currentMode === 'barcode') startScanner(); // Возвращаем камеру
+function closeModal() {
+    document.getElementById('result-modal').style.display = 'none';
+    if(document.getElementById('tab-scan').classList.contains('active')) startScanner();
 }
 
-// Старт при загрузке
-window.onload = () => startScanner();
+// ЧАТ
+async function sendMessage() {
+    const inp = document.getElementById('chat-input');
+    const txt = inp.value.trim();
+    if(!txt) return;
+    
+    const div = document.createElement('div');
+    div.className = 'msg msg-user'; div.innerText = txt;
+    document.getElementById('chat-box').appendChild(div);
+    inp.value = '';
+    
+    const res = await fetch('/api/chat', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ message: txt })
+    });
+    const data = await res.json();
+    
+    const divAi = document.createElement('div');
+    divAi.className = 'msg msg-ai'; divAi.innerHTML = data.text.replace(/\*\*(.*?)\*\*/g, '<b>$1</b>');
+    document.getElementById('chat-box').appendChild(divAi);
+}
