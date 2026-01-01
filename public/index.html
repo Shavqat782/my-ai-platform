@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Halal Guide Premium</title>
+    <title>Halal Guide Enterprise</title>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
@@ -13,42 +13,64 @@
 <body>
 
     <div id="auth-screen">
-        <div class="auth-box">
-            <h1>Halal Guide</h1>
-            <p>Ваш личный помощник</p>
-            
-            <div class="input-group">
-                <i class="fas fa-user"></i>
-                <input type="text" id="username" placeholder="Логин">
-            </div>
-            <div class="input-group">
-                <i class="fas fa-lock"></i>
-                <input type="password" id="password" placeholder="Пароль">
+        <div class="auth-container">
+            <div class="auth-logo">
+                <i class="fas fa-kaaba"></i>
+                <h1>Halal Guide</h1>
+                <p>Ваш духовный помощник</p>
             </div>
 
-            <button class="btn-auth" onclick="login()">ВОЙТИ</button>
-            <button class="btn-link" onclick="register()">Создать аккаунт</button>
+            <div id="login-form" class="auth-form">
+                <div class="input-field">
+                    <i class="fas fa-user"></i>
+                    <input type="text" id="login-username" placeholder="Имя пользователя">
+                </div>
+                <div class="input-field">
+                    <i class="fas fa-lock"></i>
+                    <input type="password" id="login-password" placeholder="Пароль">
+                </div>
+                <button class="btn-primary" onclick="login()">ВОЙТИ</button>
+                <p class="switch-auth">Нет аккаунта? <span onclick="toggleAuth('register')">Создать</span></p>
+            </div>
+
+            <div id="register-form" class="auth-form" style="display:none;">
+                <div class="input-field">
+                    <i class="fas fa-user-plus"></i>
+                    <input type="text" id="reg-username" placeholder="Придумайте имя">
+                </div>
+                <div class="input-field">
+                    <i class="fas fa-key"></i>
+                    <input type="password" id="reg-password" placeholder="Придумайте пароль">
+                </div>
+                <button class="btn-primary" onclick="register()">ЗАРЕГИСТРИРОВАТЬСЯ</button>
+                <p class="switch-auth">Есть аккаунт? <span onclick="toggleAuth('login')">Войти</span></p>
+            </div>
         </div>
     </div>
 
     <div id="app-container" style="display:none;">
         
+        <div id="preloader"><div class="spinner"></div></div>
+
         <div id="tab-home" class="screen active">
             <div class="header-premium">
-                <div><h1>Ас-саляму алейкум</h1><p id="user-greeting">Пользователь</p></div>
-                <div class="status-pill" id="premium-badge" onclick="showPaywall()">FREE</div>
+                <div>
+                    <h1 class="welcome-text">Ас-саляму алейкум,</h1>
+                    <h2 id="user-name-display">Мусульманин</h2>
+                </div>
+                <div id="status-badge" class="badge-pill free" onclick="showPaywall()">FREE</div>
             </div>
 
             <div class="daily-card-container">
                 <div class="daily-card">
                     <div class="card-label"><i class="fas fa-star"></i> Ильм дня</div>
                     <div id="daily-arabic" class="arabic-text">...</div>
-                    <div id="daily-translation" class="trans-text">Загрузка...</div>
+                    <div id="daily-translation" class="trans-text">Загрузка напоминания...</div>
                     <div id="daily-source" class="source-text">...</div>
                 </div>
             </div>
 
-            <h3 class="section-title">Инструменты</h3>
+            <h3 class="section-title">Сервисы</h3>
             <div class="grid-menu">
                 <div class="menu-item" onclick="switchTab('scan')">
                     <div class="icon-box green"><i class="fas fa-barcode"></i></div><span>Сканер</span>
@@ -59,38 +81,40 @@
                 <div class="menu-item" onclick="switchTab('map')">
                     <div class="icon-box blue"><i class="fas fa-map-marker-alt"></i></div><span>Мечети</span>
                 </div>
-                <div class="menu-item" onclick="showPaywall()">
-                    <div class="icon-box red"><i class="fas fa-crown"></i></div><span>Premium</span>
+                <div class="menu-item" onclick="logout()">
+                    <div class="icon-box red"><i class="fas fa-sign-out-alt"></i></div><span>Выйти</span>
                 </div>
             </div>
         </div>
 
         <div id="tab-scan" class="screen">
-            <div class="scanner-header"><h2>Проверка продукта</h2></div>
+            <div class="top-nav"><h2>Сканер Продуктов</h2></div>
             <div class="scanner-ui">
                 <div class="camera-frame">
                     <div id="reader"></div>
                     <div class="scan-overlay"><div class="laser"></div></div>
                 </div>
                 <p class="scan-instruction">Наведите камеру на штрихкод</p>
+                
                 <div class="scan-actions">
                     <div class="input-wrapper">
-                        <input type="number" id="barcode-input" placeholder="Цифры...">
+                        <input type="number" id="barcode-input" placeholder="Введите код вручную...">
                         <button onclick="manualSearch()" class="btn-go"><i class="fas fa-arrow-right"></i></button>
                     </div>
                     <div class="divider"><span>ИЛИ</span></div>
-                    <button class="btn-photo" onclick="document.getElementById('file-input').click()"><i class="fas fa-camera"></i> Фото Состава</button>
+                    <button class="btn-photo" onclick="document.getElementById('file-input').click()"><i class="fas fa-camera"></i> Сфотографировать Состав</button>
                     <input type="file" id="file-input" accept="image/*" capture="environment" hidden>
                 </div>
             </div>
         </div>
 
         <div id="tab-chat" class="screen">
-            <div class="chat-header">
-                <div class="status-dot"></div><div><h2>Муфтий ИИ</h2><p>Онлайн</p></div>
+            <div class="top-nav">
+                <div class="status-dot"></div>
+                <h2>Муфтий ИИ</h2>
             </div>
             <div id="chat-history" class="chat-history">
-                <div class="msg ai">Ас-саляму алейкум!</div>
+                <div class="msg ai">Ас-саляму алейкум! Я готов ответить на ваши вопросы.</div>
             </div>
             <div class="chat-input-area">
                 <input type="text" id="chat-input" placeholder="Ваш вопрос...">
@@ -100,7 +124,7 @@
 
         <div id="tab-map" class="screen">
             <div id="map"></div>
-            <button class="btn-locate" onclick="locateMe()"><i class="fas fa-location-arrow"></i> Где я?</button>
+            <button class="btn-locate" onclick="locateMe()"><i class="fas fa-location-arrow"></i> Найти меня</button>
         </div>
 
         <div class="bottom-nav">
@@ -122,17 +146,18 @@
     </div>
 
     <div id="paywall-modal" class="modal">
-        <div class="modal-content paywall-content">
-            <div class="crown-icon"><i class="fas fa-crown"></i></div>
+        <div class="modal-content paywall-box">
+            <div class="crown-anim"><i class="fas fa-crown"></i></div>
             <h2>Premium Доступ</h2>
-            <p>Лимит бесплатных сканирований (3 в день) исчерпан.</p>
+            <p class="paywall-text">Вы использовали бесплатные проверки на сегодня.</p>
             <ul class="features-list">
-                <li>✅ Безлимитные сканирования</li>
-                <li>✅ Распознавание состава по фото</li>
-                <li>✅ Быстрый Имам</li>
+                <li>🚀 Безлимитные сканирования</li>
+                <li>📸 Распознавание любого фото</li>
+                <li>🕋 Приоритетный чат с Имамом</li>
             </ul>
-            <button class="btn-buy" onclick="buyPremium()">Купить за 15 TJS</button>
-            <button class="btn-link" onclick="closeModal('paywall-modal')">Позже</button>
+            <div class="price-tag">15.00 TJS / месяц</div>
+            <button class="btn-buy" onclick="buyPremium()">ОПЛАТИТЬ (Алиф/Душанбе Сити)</button>
+            <button class="btn-cancel" onclick="closeModal('paywall-modal')">Отмена</button>
         </div>
     </div>
 
