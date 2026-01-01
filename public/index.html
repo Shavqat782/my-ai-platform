@@ -3,79 +3,68 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Halal Guide</title>
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <title>Halal Scanner</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
-    <div class="screen active" id="screen-daily">
-        <div class="header">
-            <h1>Ильм дня</h1>
-            <p>Напоминание для сердца</p>
-        </div>
-        <div class="daily-card" id="daily-content">
-            <i class="fas fa-moon fa-3x" style="opacity:0.2; position:absolute; top:-10px; right:-10px;"></i>
-            <div class="source" id="daily-source">Загрузка...</div>
-            <div class="arabic-text" id="daily-arabic">...</div>
-            <div class="translation" id="daily-translation">Пожалуйста, подождите</div>
+    <div id="tab-scan" class="screen active">
+        <div class="top-bar">
+            <h2>Сканер</h2>
         </div>
         
-        <div style="margin-top: 30px; text-align: center;">
-            <p style="color: #888;">"Тот, кто укажет на благое, получит награду, равную награде совершившего его." (Муслим)</p>
+        <div class="scanner-wrapper">
+            <div class="scan-modes">
+                <button class="mode-btn active" onclick="setMode('barcode')">Штрихкод</button>
+                <button class="mode-btn" onclick="setMode('photo')">Фото Состава</button>
+            </div>
+
+            <div id="barcode-area">
+                <div id="reader" style="width: 100%; border-radius: 15px; overflow:hidden;"></div>
+                <p class="hint">Наведите камеру на штрихкод</p>
+                
+                <div class="manual-input">
+                    <input type="number" id="barcode-input" placeholder="Или введите цифры...">
+                    <button onclick="manualSearch()"><i class="fas fa-search"></i></button>
+                </div>
+            </div>
+
+            <div id="photo-area" style="display: none;">
+                <div class="camera-preview" onclick="document.getElementById('file-input').click()">
+                    <img id="preview-img" style="display:none;">
+                    <div class="camera-icon"><i class="fas fa-camera"></i></div>
+                    <p>Сфоткать состав / этикетку</p>
+                </div>
+                <input type="file" id="file-input" accept="image/*" capture="environment" hidden>
+                <button class="main-btn" onclick="analyzePhoto()">ПРОВЕРИТЬ ФОТО</button>
+            </div>
+        </div>
+
+        <div id="result-card" class="result-card hidden">
+            <div id="res-status" class="status-badge">...</div>
+            <h3 id="res-name">...</h3>
+            <p id="res-reason">...</p>
+            <button onclick="closeResult()" style="margin-top:10px; padding:10px; border:none; background:#eee; border-radius:10px;">Закрыть</button>
         </div>
     </div>
 
-    <div class="screen" id="screen-scan">
-        <div class="header">
-            <h1>Halal Scanner</h1>
-            <p>Наведи на состав или фото товара</p>
-        </div>
-
-        <div class="scanner-area" onclick="document.getElementById('file-input').click()">
-            <img id="preview-img" style="display:none;">
-            <div class="scan-overlay"></div>
-            <i class="fas fa-camera fa-2x" style="color:white; z-index:10;" id="camera-icon"></i>
-        </div>
-        <input type="file" id="file-input" accept="image/*" capture="environment" style="display:none;">
-
-        <button class="btn-scan" onclick="analyzeImage()" id="scan-btn">
-            <i class="fas fa-search"></i> Проверить состав
-        </button>
-
-        <div class="result-card" id="scan-result">
-            <span class="badge" id="res-badge">...</span>
-            <h3 id="res-title">...</h3>
-            <p id="res-reason" style="margin-top:10px; color:#555;">...</p>
+    <div id="tab-chat" class="screen" style="display:none;">
+        <div class="top-bar"><h2>Вопрос Имаму</h2></div>
+        <div id="chat-history" class="chat-container"></div>
+        <div class="input-area">
+            <input type="text" id="chat-input" placeholder="Вопрос...">
+            <button onclick="sendMessage()"><i class="fas fa-paper-plane"></i></button>
         </div>
     </div>
 
-    <div class="screen" id="screen-chat">
-        <div class="header">
-            <h1>Вопрос Имаму</h1>
-            <p>Коран • Сунна • Фикх</p>
-        </div>
-        <div class="chat-box" id="chat-box">
-            <div class="message msg-ai">Ас-саляму алейкум! Какой вопрос вас беспокоит? Я отвечу на основе достоверных источников.</div>
-        </div>
-        <div class="input-group">
-            <input type="text" id="chat-input" placeholder="Напишите вопрос...">
-            <button class="btn-send" onclick="sendChat()"><i class="fas fa-paper-plane"></i></button>
-        </div>
-    </div>
-
-    <div class="nav-bar">
-        <div class="nav-item active" onclick="switchTab('daily', this)">
-            <i class="fas fa-book-open"></i>
-            <span>Главная</span>
-        </div>
-        <div class="nav-item" onclick="switchTab('scan', this)">
-            <i class="fas fa-barcode"></i>
-            <span>Сканер</span>
+    <div class="navbar">
+        <div class="nav-item active" onclick="switchTab('scan', this)">
+            <i class="fas fa-barcode"></i><span>Сканер</span>
         </div>
         <div class="nav-item" onclick="switchTab('chat', this)">
-            <i class="fas fa-comment-alt"></i>
-            <span>Имам</span>
+            <i class="fas fa-comments"></i><span>Имам</span>
         </div>
     </div>
 
