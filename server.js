@@ -81,7 +81,7 @@ app.post('/api/barcode', async (req, res) => {
 app.post('/api/photo', async (req, res) => {
     try {
         const { image } = req.body;
-        const model = getClient().getGenerativeModel({ model: "gemini-1.5-flash" });
+        const model = getClient().getGenerativeModel({ model: "gemini-flash-latest" });
         const result = await model.generateContent([
             ANALYZE_PROMPT, 
             { inlineData: { data: image.split(',')[1], mimeType: "image/jpeg" } }
@@ -93,7 +93,7 @@ app.post('/api/photo', async (req, res) => {
 
 app.get('/api/daily', async (req, res) => {
     try {
-        const model = getClient().getGenerativeModel({ model: "gemini-1.5-flash" });
+        const model = getClient().getGenerativeModel({ model: "gemini-flash-latest" });
         const result = await model.generateContent(`Пришли 1 Аят или Хадис. JSON: {"arabic": "...", "translation": "...", "source": "..."}`);
         res.json(JSON.parse(result.response.text().replace(/```json|```/g, '').trim()));
     } catch (e) { res.json({ translation: "Аллах с нами.", arabic: "الله معانا" }); }
