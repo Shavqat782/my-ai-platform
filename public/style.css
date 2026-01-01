@@ -227,3 +227,36 @@ body {
     transition: transform 0.2s;
 }
 .scan-circle:active { transform: scale(0.9); }
+/* ... старые стили ... */
+
+.icon-box.blue { background: rgba(13, 110, 253, 0.1); color: #0d6efd; }
+
+/* КАРТА И КИБЛА */
+#map {
+    width: 100%;
+    height: 60%; /* На весь экран почти */
+    border-top: 1px solid #ddd;
+    border-bottom: 1px solid #ddd;
+}
+
+.qibla-box {
+    padding: 20px;
+    background: linear-gradient(135deg, #2c3e50, #000);
+    color: var(--gold);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+.compass-icon {
+    font-size: 40px;
+    transition: transform 1s ease-out; /* Плавное вращение */
+}
+#qibla-text { font-size: 14px; color: white; margin-left: 15px; }
+
+.btn-locate {
+    position: absolute; bottom: 100px; right: 20px;
+    background: var(--white); color: var(--primary);
+    padding: 15px; border-radius: 50px; border: none;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+    font-weight: bold; cursor: pointer; z-index: 500;
+}
