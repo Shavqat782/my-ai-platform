@@ -1,112 +1,143 @@
-@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Montserrat:wght@400;600&display=swap');
 
 :root {
-    /* ТЕМНАЯ ТЕМА (По умолчанию) */
-    --bg-color: #000000;
-    --sidebar-bg: rgba(10, 10, 10, 0.95);
-    --text-color: #ffffff;
-    --text-dim: #a0a0a0;
-    --input-bg: rgba(255, 255, 255, 0.05);
-    --border-color: rgba(255, 255, 255, 0.1);
-    --gold-accent: #D4AF37;
-    --msg-ai: rgba(255, 255, 255, 0.1);
-    --msg-user-bg: linear-gradient(135deg, #D4AF37, #AA8A22);
-    --msg-user-text: #000;
+    --primary: #0F5132; /* Изумрудный */
+    --gold: #D4AF37;    /* Золото */
+    --bg: #F8F9FA;      /* Светлый фон */
+    --text: #212529;
+    --red: #DC3545;
+    --green: #198754;
+    --orange: #FFC107;
 }
 
-/* СВЕТЛАЯ ТЕМА (Класс .light-mode) */
-body.light-mode {
-    --bg-color: #f0f2f5;
-    --sidebar-bg: #ffffff;
-    --text-color: #1c1e21;
-    --text-dim: #65676b;
-    --input-bg: #ffffff;
-    --border-color: #ddd;
-    --gold-accent: #0084ff; /* Синий вместо золотого для строгости */
-    --msg-ai: #ffffff;
-    --msg-user-bg: linear-gradient(135deg, #0084ff, #0056b3);
-    --msg-user-text: #fff;
-}
-
-/* Общие стили */
 * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Montserrat', sans-serif; }
 
 body {
-    background: var(--bg-color);
-    color: var(--text-color);
-    height: 100dvh;
-    display: flex;
-    overflow: hidden;
-    transition: background 0.3s, color 0.3s;
-}
-
-.container { display: flex; width: 100%; height: 100%; }
-
-/* Сайдбар */
-.sidebar {
-    width: 280px;
-    background: var(--sidebar-bg);
-    padding: 25px;
+    background-color: var(--bg);
+    color: var(--text);
+    height: 100vh; /* Используем vh, на мобильном поправим JS */
     display: flex;
     flex-direction: column;
-    border-right: 1px solid var(--border-color);
-    transition: 0.3s;
-    z-index: 100;
 }
-body.light-mode .sidebar { box-shadow: 2px 0 10px rgba(0,0,0,0.05); }
 
-.brand { font-size: 1.5rem; font-weight: 600; color: var(--gold-accent); margin-bottom: 30px; text-align: center; }
-
-.menu-item { padding: 15px; margin-bottom: 10px; border-radius: 12px; cursor: pointer; color: var(--text-dim); display: flex; align-items: center; gap: 15px; }
-.menu-item:hover { background: var(--input-bg); color: var(--text-color); }
-.menu-item.active { background: rgba(212, 175, 55, 0.1); color: var(--gold-accent); border-left: 3px solid var(--gold-accent); }
-body.light-mode .menu-item.active { background: rgba(0, 132, 255, 0.1); }
-
-/* Чат */
-.main-chat { flex: 1; display: flex; flex-direction: column; width: 100%; }
-
-.chat-header {
-    padding: 15px 20px;
-    border-bottom: 1px solid var(--border-color);
+/* Навигация снизу (как в приложениях) */
+.nav-bar {
+    position: fixed;
+    bottom: 0;
+    width: 100%;
+    height: 70px;
+    background: white;
     display: flex;
-    justify-content: space-between;
+    justify-content: space-around;
     align-items: center;
-    background: var(--sidebar-bg); /* Теперь совпадает с темой */
+    box-shadow: 0 -2px 10px rgba(0,0,0,0.1);
+    z-index: 1000;
 }
 
-/* Кнопки управления в хедере */
-.header-controls { display: flex; gap: 15px; align-items: center; }
-.toggle-btn { cursor: pointer; font-size: 1.2rem; color: var(--text-dim); transition: 0.3s; }
-.toggle-btn:hover { color: var(--gold-accent); }
-.toggle-btn.active { color: var(--gold-accent); }
+.nav-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    color: #aaa;
+    font-size: 0.8rem;
+    cursor: pointer;
+    transition: 0.3s;
+}
 
-/* Сообщения */
-.messages { flex: 1; padding: 20px; overflow-y: auto; display: flex; flex-direction: column; gap: 20px; }
-.message { max-width: 85%; padding: 15px 20px; border-radius: 18px; line-height: 1.5; font-size: 0.95rem; word-wrap: break-word; }
-.message.ai { align-self: flex-start; background: var(--msg-ai); border: 1px solid var(--border-color); color: var(--text-color); border-bottom-left-radius: 4px; }
-.message.user { align-self: flex-end; background: var(--msg-user-bg); color: var(--msg-user-text); border-bottom-right-radius: 4px; }
+.nav-item i { font-size: 1.5rem; margin-bottom: 5px; }
+.nav-item.active { color: var(--primary); transform: translateY(-5px); }
 
-/* Ввод */
-.input-area {
+/* Экраны (Вкладки) */
+.screen {
+    flex: 1;
+    display: none;
+    flex-direction: column;
+    padding: 20px;
+    padding-bottom: 90px; /* Отступ для меню */
+    overflow-y: auto;
+}
+.screen.active { display: flex; }
+
+/* Хедеры */
+.header {
+    text-align: center;
+    margin-bottom: 20px;
+}
+.header h1 { color: var(--primary); font-family: 'Amiri', serif; font-size: 2rem; }
+.header p { color: #666; font-size: 0.9rem; }
+
+/* 1. ЭКРАН СКАНЕРА */
+.scanner-area {
+    background: #000;
+    border-radius: 20px;
+    height: 350px;
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 3px solid var(--gold);
+}
+.scanner-area img { width: 100%; height: 100%; object-fit: cover; }
+.scan-overlay {
+    position: absolute; width: 80%; height: 60%;
+    border: 2px dashed rgba(255,255,255,0.7);
+    border-radius: 10px;
+}
+
+.btn-scan {
+    margin-top: 20px;
+    background: var(--primary);
+    color: white;
+    border: none;
     padding: 15px;
-    background: var(--sidebar-bg);
-    display: flex; gap: 10px; align-items: center;
-    border-top: 1px solid var(--border-color);
+    border-radius: 50px;
+    font-size: 1.1rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    cursor: pointer;
+    box-shadow: 0 5px 15px rgba(15, 81, 50, 0.3);
 }
-input { flex: 1; padding: 12px 20px; border-radius: 30px; border: 1px solid var(--border-color); background: var(--input-bg); color: var(--text-color); outline: none; }
-button { width: 45px; height: 45px; border-radius: 50%; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; }
-.send-btn { background: var(--gold-accent); color: #fff; }
-.icon-btn { background: var(--input-bg); color: var(--text-color); }
-.recording { background: #ff4444 !important; color: #fff; animation: pulse 1.5s infinite; }
+.btn-scan i { color: var(--gold); }
 
-/* Картинки */
-.chat-image { max-width: 100%; border-radius: 15px; margin-top: 10px; border: 1px solid var(--border-color); }
-.download-btn { display: inline-block; margin-top: 10px; padding: 8px 15px; background: var(--input-bg); color: var(--gold-accent); border-radius: 20px; text-decoration: none; border: 1px solid var(--gold-accent); font-size: 0.8rem; }
-
-@media (max-width: 768px) {
-    .sidebar { position: absolute; height: 100%; transform: translateX(-100%); width: 80%; box-shadow: 10px 0 30px rgba(0,0,0,0.5); }
-    .sidebar.open { transform: translateX(0); }
-    .menu-toggle { display: block; font-size: 1.5rem; color: var(--gold-accent); margin-right: 15px; }
+/* Результат сканирования */
+.result-card {
+    margin-top: 20px;
+    background: white;
+    padding: 20px;
+    border-radius: 15px;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.05);
+    display: none;
+    animation: fadeUp 0.5s;
 }
-@media (min-width: 769px) { .menu-toggle { display: none; } }
-@keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.1); } 100% { transform: scale(1); } }
+.badge { display: inline-block; padding: 5px 15px; border-radius: 20px; color: white; font-weight: bold; margin-bottom: 10px; }
+.bg-halal { background: var(--green); }
+.bg-haram { background: var(--red); }
+.bg-mushbooh { background: var(--orange); color: black; }
+
+/* 2. ЭКРАН ЧАТА */
+.chat-box { flex: 1; display: flex; flex-direction: column; gap: 15px; overflow-y: auto; margin-bottom: 15px; }
+.message { max-width: 85%; padding: 12px 18px; border-radius: 15px; font-size: 0.95rem; line-height: 1.5; }
+.msg-ai { background: white; border-top-left-radius: 0; box-shadow: 0 2px 5px rgba(0,0,0,0.05); border-left: 3px solid var(--gold); }
+.msg-user { align-self: flex-end; background: var(--primary); color: white; border-bottom-right-radius: 0; }
+.input-group { display: flex; gap: 10px; }
+.input-group input { flex: 1; padding: 15px; border-radius: 30px; border: 1px solid #ddd; outline: none; }
+.btn-send { width: 50px; height: 50px; border-radius: 50%; background: var(--gold); border: none; color: white; cursor: pointer; }
+
+/* 3. ЭКРАН ДНЯ (ИЛЬМ) */
+.daily-card {
+    background: linear-gradient(135deg, var(--primary), #0a3d25);
+    color: white;
+    padding: 30px;
+    border-radius: 20px;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+}
+.arabic-text { font-family: 'Amiri', serif; font-size: 1.8rem; margin: 20px 0; line-height: 1.6; color: var(--gold); }
+.translation { font-size: 1rem; font-style: italic; opacity: 0.9; }
+.source { margin-top: 15px; font-weight: bold; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 1px; }
+
+@keyframes fadeUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }

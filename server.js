@@ -1,153 +1,114 @@
 const express = require('express');
 const cors = require('cors');
-const mongoose = require('mongoose');
-const bcrypt = require('bcryptjs');
-const jwt = require('jsonwebtoken');
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 require('dotenv').config();
 
 const app = express();
-app.use(express.json());
+app.use(express.json({ limit: '10mb' })); // Чтобы фото загружались
 app.use(cors());
 app.use(express.static('public'));
 
-mongoose.connect(process.env.MONGO_URI)
-    .then(() => console.log('✅ MongoDB подключена'))
-    .catch(err => console.error('❌ Ошибка MongoDB:', err));
-
-const UserSchema = new mongoose.Schema({
-    username: { type: String, required: true, unique: true },
-    password: { type: String, required: true },
-    chats: [{
-        role: String,
-        messages: [{ sender: String, text: String, timestamp: Date }]
-    }]
-});
-const User = mongoose.model('User', UserSchema);
-
+// Ротация ключей (твоя фишка)
 const apiKeys = [
     process.env.KEY1, process.env.KEY2, process.env.KEY3,
     process.env.KEY4, process.env.KEY5, process.env.KEY6
 ].filter(k => k);
 
 function getClient() {
-    return new GoogleGenerativeAI(apiKeys[Math.floor(Math.random() * apiKeys.length)]);
+    const key = apiKeys[Math.floor(Math.random() * apiKeys.length)];
+    return new GoogleGenerativeAI(key);
 }
 
-// --- НОВЫЕ МОЩНЫЕ ИНСТРУКЦИИ ---
-const commonRule = "Отвечай кратко и ясно (3-4 предложения), пока клиент не попросит 'подробнее'. Если вопрос на таджикском — отвечай на таджикском (кириллица). Если на русском — на русском.";
+// --- ПРОМПТЫ (ИНСТРУКЦИИ) ---
 
-const assistants = {
-    // 1. ИСЛАМ (Строгий Муфтий)
-    islam: `Ты — Муфтий с 20-летним опытом обучения в Мекке и Медине. Твоя методология строга:
-    1. Сначала ищи ответ в Священном Коране.
-    2. Если нет, обратись к Достоверным Хадисам (Сунна).
-    3. Если нет, приведи мнения Сподвижников (Сахабов).
-    4. Если нет, приведи мнения Праведных предшественников (Саляф ас-Салих).
-    Никакой отсебятины и современной философии. Давай ссылки на источники. ${commonRule}`,
+// 1. ПРОМПТ ДЛЯ СКАНЕРА (Строгий анализ состава)
+const SCAN_PROMPT = `
+Ты — эксперт по стандартизации Халяль (Halal) и пищевой химик. 
+Твоя задача — проанализировать фото товара (состав, штрихкод, внешний вид).
 
-    // 2. ПРОГРАММИСТ (Разрешено писать много кода)
-    programmer: `Ты — Senior Fullstack Developer с 10-летним опытом работы в Google и Amazon. 
-    Твоя задача — писать ИДЕАЛЬНЫЙ, РАБОЧИЙ и ПОЛНЫЙ код.
-    ВАЖНО: Если тебя просят написать код — пиши его целиком, от начала до конца, не сокращай.
-    Для текстовых объяснений используй правило краткости: 3-4 предложения.`,
+КРИТЕРИИ ЗАПРЕТНОГО (HARAM):
+- Свинина (Pork, Ham, Bacon, Lard, Gelatin если не указан Halal/Bovine).
+- Алкоголь (Alcohol, Ethanol, Wine, Rum, Brandy) — если используется как ингредиент, а не технический спирт.
+- Кармин (E120, Carmine, Cochineal).
+- Шеллак (E904).
+- L-cysteine (E920) — если из волос человека/свиньи.
+- Сычужный фермент (Rennet) — если животный и не Халяль.
+- Мясо не по шариату.
 
-    // 3. МАРКЕТОЛОГ
-    marketer: `Ты — CMO (Директор по маркетингу) с 10-летним опытом в Fortune 500. Ты эксперт в стратегиях, воронках и психологии продаж. ${commonRule}`,
+ФОРМАТ ОТВЕТА (JSON):
+{
+  "status": "HALAL" (Зеленый) | "HARAM" (Красный) | "MUSHBOOH" (Желтый/Сомнительно),
+  "title": "Название продукта (если видишь)",
+  "reason": "Четкое объяснение. Если Харам — напиши, какой именно ингредиент. Если Машбух — напиши, что нужно уточнить (например, источник желатина).",
+  "ingredients": "Список подозрительных компонентов"
+}
+Если текст не читается, верни статус "ERROR".
+`;
 
-    // 4. SMM
-    smm: `Ты — Топ SMM-стратег с 10-летним опытом. Ты знаешь алгоритмы Instagram, TikTok, YouTube наизусть. ${commonRule}`,
+// 2. ПРОМПТ ДЛЯ ЧАТА (Муфтий)
+const CHAT_PROMPT = `
+Ты — Исламский ученый (Муфтий), следующий пути Ахлю Сунна валь-Джамаа.
+Твоя методология вынесения решений:
+1. Коран (Аяты).
+2. Достоверная Сунна (Хадисы из Бухари, Муслима и др.).
+3. Иджма (Единогласное мнение сподвижников).
+4. Кыяс (Суждение по аналогии, если вопрос современный).
 
-    // 5. ФИНАНСИСТ
-    finance: `Ты — Инвестиционный банкир с 10-летним стажем на Wall Street. Эксперт в крипте, акциях и управлении капиталом. ${commonRule}`,
+Ссылайся на 4 мазхаба (Ханафи, Шафии, Малики, Ханбали), если есть разногласия.
+Будь вежлив, мудр и краток. Не философствуй.
+Если вопрос на таджикском — отвечай на таджикском (кириллица).
+`;
 
-    // 6. ПСИХОЛОГ
-    psychologist: `Ты — Клинический психолог с 10-летним стажем. Твой подход — когнитивно-поведенческая терапия. Будь эмпатичным. ${commonRule}`,
+// 3. ПРОМПТ ДЛЯ "ХАДИСА ДНЯ"
+const DAILY_PROMPT = `
+Пришли один вдохновляющий Аят из Корана (с номером суры) ИЛИ один достоверный Хадис (с источником).
+Тема: Нравственность, Терпение, Ризк, Очищение сердца или Халяль.
+Ответ верни в формате JSON:
+{
+  "type": "AYAT" или "HADITH",
+  "arabic": "Текст на арабском",
+  "translation": "Перевод на русский",
+  "source": "Например: Сура Аль-Бакара 2:155 или Сахих Бухари 50"
+}
+`;
 
-    // 7. ЯЗЫКИ
-    tutor: `Ты — Полиглот-лингвист с 10-летним стажем. Ты знаешь методики спецслужб для быстрого изучения языков. ${commonRule}`,
+// --- ЭНДПОИНТЫ ---
 
-    // 8. ЮРИСТ
-    lawyer: `Ты — Международный адвокат с 10-летним опытом. Ты видишь подводные камни в любых договорах. ${commonRule}`,
-
-    // 9. HR
-    hr: `Ты — HR-директор глобальной корпорации (10 лет опыта). Ты знаешь, как нанимать лучших и как проходить собеседования. ${commonRule}`,
-
-    // 10. ФОТО
-    photo: `IMAGE_MODE`,
-
-    // 11. ОБЩИЙ
-    general: `Ты — Эрудит с энциклопедическими знаниями. ${commonRule}`
-};
-
-// ... (Дальше стандартный код авторизации и чата, он не меняется) ...
-app.post('/api/register', async (req, res) => {
+// Сканирование
+app.post('/api/scan', async (req, res) => {
     try {
-        const { username, password } = req.body;
-        const hashedPassword = await bcrypt.hash(password, 10);
-        const user = new User({ username, password: hashedPassword, chats: [] });
-        await user.save();
-        res.status(201).json({ message: "ОК" });
-    } catch (e) { res.status(400).json({ error: "Ошибка" }); }
-});
-
-app.post('/api/login', async (req, res) => {
-    try {
-        const { username, password } = req.body;
-        const user = await User.findOne({ username });
-        if (!user || !(await bcrypt.compare(password, user.password))) return res.status(400).json({ error: "Неверно" });
-        const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET);
-        res.json({ token, username });
-    } catch (e) { res.status(500).json({ error: "Ошибка" }); }
-});
-
-const auth = (req, res, next) => {
-    const token = req.header('Authorization');
-    if (!token) return res.status(401).json({ error: "Нет доступа" });
-    try {
-        const decoded = jwt.verify(token, process.env.JWT_SECRET);
-        req.userId = decoded.userId;
-        next();
-    } catch (e) { res.status(401).json({ error: "Токен неверен" }); }
-};
-
-app.post('/api/chat', auth, async (req, res) => {
-    try {
-        const { message, role } = req.body;
-        const user = await User.findById(req.userId);
+        const { image } = req.body;
+        const model = getClient().getGenerativeModel({ model: "gemini-1.5-flash" });
         
-        let chatHistory = user.chats.find(c => c.role === role);
-        if (!chatHistory) {
-            user.chats.push({ role, messages: [] });
-            chatHistory = user.chats.find(c => c.role === role);
-        }
-        chatHistory.messages.push({ sender: 'user', text: message, timestamp: new Date() });
-
-        if (role === 'photo') return res.json({ text: "Генерация..." });
-
-        const genAI = getClient();
-        const model = genAI.getGenerativeModel({ 
-            model: "gemini-flash-latest",
-            systemInstruction: assistants[role] || assistants.general
-        });
-
-        const result = await model.generateContent(message);
-        const text = result.response.text();
-
-        chatHistory.messages.push({ sender: 'ai', text: text, timestamp: new Date() });
-        await user.save();
-
-        res.json({ text });
+        const imagePart = { inlineData: { data: image.split(',')[1], mimeType: "image/jpeg" } };
+        const result = await model.generateContent([SCAN_PROMPT, imagePart]);
+        const text = result.response.text().replace(/```json|```/g, '').trim();
+        res.json(JSON.parse(text));
     } catch (e) {
         console.error(e);
-        res.status(500).json({ text: "Ошибка сервера" });
+        res.status(500).json({ status: "ERROR", reason: "Не удалось распознать фото." });
     }
 });
 
-app.get('/api/history', auth, async (req, res) => {
-    const user = await User.findById(req.userId);
-    res.json(user.chats);
+// Чат с Муфтием
+app.post('/api/chat', async (req, res) => {
+    try {
+        const { message, history } = req.body; // history можно добавить позже для контекста
+        const model = getClient().getGenerativeModel({ model: "gemini-1.5-flash", systemInstruction: CHAT_PROMPT });
+        const result = await model.generateContent(message);
+        res.json({ text: result.response.text() });
+    } catch (e) { res.status(500).json({ text: "Ошибка связи." }); }
+});
+
+// Хадис дня
+app.get('/api/daily', async (req, res) => {
+    try {
+        const model = getClient().getGenerativeModel({ model: "gemini-1.5-flash" });
+        const result = await model.generateContent(DAILY_PROMPT);
+        const text = result.response.text().replace(/```json|```/g, '').trim();
+        res.json(JSON.parse(text));
+    } catch (e) { res.json({ type: "HADITH", translation: "Дела оцениваются по намерениям.", source: "Бухари", arabic: "إِنَّمَا الْأَعْمَالُ بِالنِّيَّاتِ" }); }
 });
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`🚀 Сервер на порту ${PORT}`));
+app.listen(PORT, () => console.log(`🚀 Halal App запущен на ${PORT}`));
