@@ -109,12 +109,60 @@ function showRes(d) {
     if(d.ingredients_detected) d.ingredients_detected.forEach(i=>l.innerHTML+=`<span style="color:red;margin-right:5px">${i}</span>`);
 }
 
-// MAP
+// --- MAP & QIBLA (ИСПРАВЛЕННАЯ) ---
 function initMap() {
-    if(map) {map.invalidateSize();return;}
-    map=L.map('map').setView([38.55,68.78],13);
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+    // Если карта уже есть, просто обновляем её размеры (фикс серого экрана)
+    if(map) { 
+        setTimeout(() => map.invalidateSize(), 100);
+        return; 
+    }
+
+    // 1. Создаем карту (Центр - Душанбе)
+    map = L.map('map').setView([38.5598, 68.7870], 13);
+
+    // 2. Добавляем слой (Картинки улиц)
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '© OpenStreetMap'
+    }).addTo(map);
+
+    // 3. Пытаемся найти пользователя
     locateUser();
+}
+
+function locateUser() {
+    // Показываем "Ищу..."
+    const qText = document.getElementById('q-text');
+    if(qText) qText.innerText = "Ищем спутники...";
+
+    if(!navigator.geolocation) {
+        alert("Ваш телефон не поддерживает GPS");
+        return;
+    }
+
+    navigator.geolocation.getCurrentPosition(
+        (p) => {
+            const {latitude: lat, longitude: lng} = p.coords;
+            
+            // Летим к юзеру
+            map.setView([lat, lng], 16);
+            
+            // Удаляем старый маркер если был
+            if(window.userMarker) map.removeLayer(window.userMarker);
+            
+            // Ставим новый
+            window.userMarker = L.marker([lat, lng]).addTo(map).bindPopup("Я здесь").openPopup();
+            
+            // Считаем Киблу и ищем мечети
+            calcQibla(lat, lng);
+            findMosques(lat, lng);
+        },
+        (err) => {
+            console.log("Ошибка GPS:", err);
+            // Если ошибка GPS - оставляем Душанбе, но пишем ошибку
+            if(qText) qText.innerText = "Включите GPS!";
+        },
+        { enableHighAccuracy: true } // Просим точный GPS
+    );
 }
 function locateUser() {
     navigator.geolocation.getCurrentPosition(p=>{

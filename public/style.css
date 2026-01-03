@@ -1,3 +1,32 @@
+/* В самом верху файла style.css */
+
+body { 
+    margin: 0; 
+    font-family: 'Montserrat', sans-serif; 
+    background: var(--bg); 
+    /* ВАЖНО: Убираем overflow: hidden, чтобы скролл работал везде */
+    height: 100vh; 
+    display: flex; 
+    flex-direction: column; 
+}
+
+/* Экран приложения */
+.screen { 
+    display: none; 
+    flex: 1; 
+    flex-direction: column; 
+    /* ВАЖНО: Разрешаем скролл внутри вкладки */
+    overflow-y: auto; 
+    overflow-x: hidden;
+    /* Отступ снизу, чтобы контент не прятался за меню */
+    padding-bottom: 100px; 
+    width: 100%;
+    height: 100%;
+}
+
+.screen.active { 
+    display: flex; 
+}
 @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700&family=Amiri:wght@700&display=swap');
 
 :root {
@@ -88,3 +117,32 @@ body { margin: 0; font-family: 'Montserrat', sans-serif; background: var(--bg); 
 .feat-list li { margin-bottom: 10px; color: #555; }
 .price { font-size: 20px; color: var(--primary); font-weight: 800; margin-bottom: 20px; }
 .btn-sec { background: transparent; color: #999; margin-top: 10px; width: 100%; border: none; cursor: pointer; }
+/* Внизу файла style.css */
+
+#tab-map {
+    /* Карта должна занимать весь экран */
+    height: 100%; 
+    padding: 0;
+}
+
+#map { 
+    width: 100%; 
+    /* ВАЖНО: Даем карте точную высоту, иначе она исчезнет */
+    height: 80vh; 
+    min-height: 400px;
+    z-index: 1;
+}
+
+.map-head { 
+    position: absolute; 
+    top: 20px; 
+    left: 50%; 
+    transform: translateX(-50%); 
+    z-index: 999; 
+    background: rgba(15, 81, 50, 0.9); 
+    color: white; 
+    padding: 10px 20px; 
+    border-radius: 30px; 
+    font-weight: bold; 
+    box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+}
