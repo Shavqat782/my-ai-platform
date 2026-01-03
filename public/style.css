@@ -1,72 +1,90 @@
 @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700&family=Amiri:wght@700&display=swap');
 
 :root {
-    --primary: #0F5132; --gold: #D4AF37; --bg: #F4F6F8; --white: #FFF;
+    --primary: #0F5132; --gold: #D4AF37; --bg: #F0F2F5; --white: #FFF;
     --red: #c0392b; --green: #27ae60; --shadow: 0 10px 30px rgba(0,0,0,0.08);
 }
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 body { margin: 0; font-family: 'Montserrat', sans-serif; background: var(--bg); height: 100vh; overflow: hidden; display: flex; flex-direction: column; }
 
+/* ЗАГРУЗКА */
+#preloader { position: fixed; inset: 0; background: var(--primary); z-index: 9999; display: flex; justify-content: center; align-items: center; }
+.spinner { width: 50px; height: 50px; border: 4px solid rgba(255,255,255,0.3); border-top: 4px solid var(--gold); border-radius: 50%; animation: spin 1s infinite linear; }
+@keyframes spin { 100%{transform:rotate(360deg)} }
+
 /* AUTH */
-#auth-screen { position: fixed; inset: 0; background: var(--primary); z-index: 999; display: flex; align-items: center; justify-content: center; }
+#auth-screen { position: fixed; inset: 0; background: var(--primary); z-index: 1000; display: flex; justify-content: center; align-items: center; }
 .auth-box { background: var(--white); width: 85%; padding: 30px; border-radius: 30px; text-align: center; box-shadow: 0 20px 50px rgba(0,0,0,0.3); }
 .logo-area { font-size: 50px; color: var(--gold); margin-bottom: 10px; }
-input { width: 100%; padding: 15px; margin: 10px 0; border: 1px solid #ddd; border-radius: 15px; font-size: 16px; }
-.btn-main { width: 100%; padding: 15px; background: var(--gold); border: none; border-radius: 15px; font-weight: bold; font-size: 16px; margin-top: 10px; cursor: pointer; }
-.link { margin-top: 15px; color: #666; font-size: 14px; text-decoration: underline; cursor: pointer; }
+.inp-grp { background: #f5f5f5; border-radius: 15px; padding: 12px; margin-bottom: 10px; display: flex; align-items: center; }
+.inp-grp i { color: #aaa; margin-right: 10px; }
+.inp-grp input { border: none; background: transparent; width: 100%; font-size: 16px; }
+.btn-main { width: 100%; padding: 15px; background: var(--gold); border: none; border-radius: 50px; font-weight: bold; font-size: 16px; margin-top: 10px; cursor: pointer; color: #4e3e06; }
+.link { margin-top: 15px; color: #888; text-decoration: underline; cursor: pointer; }
 
-/* APP */
+/* APP TABS */
 .screen { display: none; flex: 1; flex-direction: column; overflow-y: auto; padding-bottom: 90px; }
 .screen.active { display: flex; }
 
 /* HOME */
 .header { background: var(--white); padding: 30px 20px; border-radius: 0 0 30px 30px; display: flex; justify-content: space-between; align-items: center; box-shadow: var(--shadow); }
-.header h1 { font-family: 'Amiri'; color: #888; margin: 0; font-size: 18px; }
-.header h2 { color: var(--primary); margin: 0; }
-.badge { padding: 5px 15px; border-radius: 20px; font-weight: bold; font-size: 12px; }
-.free { background: #eee; color: #555; } .premium { background: var(--gold); color: #fff; }
+.header h2 { color: var(--primary); margin: 0; font-size: 24px; }
+.badge { padding: 5px 15px; border-radius: 20px; font-weight: bold; font-size: 12px; cursor: pointer; }
+.free { background: #eee; color: #555; } .premium { background: var(--gold); color: #fff; box-shadow: 0 0 10px var(--gold); }
 
 .daily-card { margin: 20px; background: linear-gradient(135deg, var(--primary), #052c1a); color: var(--white); padding: 25px; border-radius: 25px; text-align: center; border: 1px solid var(--gold); }
-.arabic { font-family: 'Amiri'; font-size: 24px; margin: 10px 0; }
+.card-head { color: var(--gold); font-weight: bold; margin-bottom: 10px; text-transform: uppercase; font-size: 12px; }
+.arabic { font-family: 'Amiri'; font-size: 24px; margin-bottom: 10px; }
 .menu-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; padding: 0 20px; }
 .menu-btn { background: var(--white); padding: 20px; border-radius: 20px; text-align: center; box-shadow: var(--shadow); cursor: pointer; }
-.menu-btn i { font-size: 24px; display: block; margin-bottom: 10px; }
+.menu-btn i { font-size: 28px; margin-bottom: 10px; display: block; }
 .green { color: var(--green); } .gold { color: var(--gold); } .blue { color: #2980b9; } .red { color: var(--red); }
 
 /* SCANNER */
+.sub-header { padding: 20px; background: white; text-align: center; box-shadow: var(--shadow); }
 .scan-ui { padding: 20px; display: flex; flex-direction: column; align-items: center; }
-.reader-box { width: 100%; height: 300px; background: #000; border-radius: 20px; overflow: hidden; border: 3px solid var(--gold); }
-#reader { width: 100%; height: 100%; }
-.or-divider { margin: 20px 0; color: #aaa; font-weight: bold; }
-.btn-photo { width: 100%; padding: 15px; background: var(--primary); color: white; border: none; border-radius: 50px; font-size: 16px; cursor: pointer; }
+.reader-wrap { width: 100%; height: 300px; background: black; border-radius: 20px; border: 4px solid white; box-shadow: 0 20px 40px rgba(0,0,0,0.2); overflow: hidden; position: relative; }
+#reader { width: 100%; height: 100%; object-fit: cover; }
+.overlay { position: absolute; inset: 0; border: 2px solid rgba(255,255,255,0.3); }
+.laser { position: absolute; width: 100%; height: 2px; background: var(--red); top: 50%; box-shadow: 0 0 10px red; animation: scan 2s infinite; }
+@keyframes scan { 0%{top:10%;opacity:0} 50%{opacity:1} 100%{top:90%;opacity:0} }
+.actions { width: 100%; margin-top: 20px; }
+.input-row { display: flex; gap: 10px; margin-bottom: 15px; }
+.input-row input { width: 100%; padding: 12px; border-radius: 10px; border: 1px solid #ddd; }
+.input-row button { width: 50px; background: var(--primary); color: white; border: none; border-radius: 10px; }
+.or { text-align: center; color: #aaa; font-weight: bold; margin-bottom: 15px; }
+.btn-photo { width: 100%; padding: 15px; background: var(--gold); border: none; border-radius: 50px; font-weight: bold; color: #4e3e06; }
 
 /* CHAT */
-.chat-head { background: var(--white); padding: 15px; display: flex; align-items: center; gap: 15px; box-shadow: var(--shadow); }
-.avatar { width: 40px; height: 40px; background: var(--gold); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; }
-.chat-body { flex: 1; padding: 20px; display: flex; flex-direction: column; gap: 10px; overflow-y: auto; background: #e5ddd5; }
+.chat-head { padding: 15px; background: white; display: flex; align-items: center; gap: 10px; box-shadow: var(--shadow); }
+.status { width: 10px; height: 10px; background: var(--green); border-radius: 50%; }
+.chat-body { flex: 1; background: #e5ddd5; padding: 20px; display: flex; flex-direction: column; gap: 10px; overflow-y: auto; }
 .msg { max-width: 80%; padding: 10px 15px; border-radius: 15px; font-size: 15px; }
 .ai { background: white; align-self: flex-start; border-bottom-left-radius: 0; }
 .user { background: var(--primary); color: white; align-self: flex-end; border-bottom-right-radius: 0; }
 .chat-input { padding: 10px; background: white; display: flex; gap: 10px; }
-.chat-input input { border-radius: 20px; margin: 0; }
-.chat-input button { width: 50px; background: var(--primary); color: white; border: none; border-radius: 50px; }
+.chat-input input { border-radius: 20px; margin: 0; background: #f0f0f0; border: none; }
+.chat-input button { width: 45px; background: var(--primary); color: white; border: none; border-radius: 50%; }
 
 /* MAP */
 #map { flex: 1; width: 100%; }
-.map-head { background: var(--primary); color: white; padding: 15px; display: flex; justify-content: center; }
-.btn-float { position: absolute; bottom: 100px; right: 20px; width: 50px; height: 50px; border-radius: 50%; border: none; background: white; color: var(--primary); font-size: 20px; box-shadow: 0 5px 15px rgba(0,0,0,0.2); z-index: 999; cursor: pointer; }
+.map-head { background: var(--primary); color: white; padding: 10px; text-align: center; font-weight: bold; }
+.btn-float { position: absolute; bottom: 100px; right: 20px; width: 50px; height: 50px; background: white; border-radius: 50%; border: none; color: var(--primary); box-shadow: 0 5px 15px rgba(0,0,0,0.2); z-index: 999; }
 
-/* NAVBAR */
-.navbar { position: fixed; bottom: 0; width: 100%; height: 70px; background: white; border-radius: 30px 30px 0 0; display: flex; justify-content: space-around; align-items: center; box-shadow: 0 -5px 20px rgba(0,0,0,0.1); z-index: 100; }
+/* NAV */
+.navbar { position: fixed; bottom: 0; width: 100%; height: 75px; background: white; border-radius: 30px 30px 0 0; display: flex; justify-content: space-around; align-items: center; box-shadow: 0 -5px 20px rgba(0,0,0,0.1); z-index: 100; }
 .nav-i { font-size: 24px; color: #ccc; cursor: pointer; }
 .nav-i.active { color: var(--primary); }
-.nav-center .circle { width: 60px; height: 60px; background: var(--primary); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: var(--gold); font-size: 28px; position: relative; bottom: 25px; border: 5px solid var(--bg); }
+.nav-c .circle { width: 65px; height: 65px; background: var(--primary); border-radius: 50%; border: 5px solid var(--bg); position: relative; bottom: 25px; display: flex; align-items: center; justify-content: center; color: var(--gold); font-size: 28px; }
 
 /* MODALS */
-.modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 2000; justify-content: center; align-items: center; padding: 20px; }
+.modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 2000; justify-content: center; align-items: center; padding: 20px; }
 .modal-card { background: white; width: 100%; max-width: 400px; padding: 30px; border-radius: 30px; text-align: center; }
 .res-badge { padding: 10px 30px; border-radius: 50px; color: white; font-weight: bold; margin: 15px 0; display: inline-block; }
 .halal { background: var(--green); } .haram { background: var(--red); } .mushbooh { background: #f39c12; }
 .pay-card { border: 2px solid var(--gold); }
 .big-icon { font-size: 50px; color: var(--gold); margin-bottom: 20px; }
+.feat-list { list-style: none; text-align: left; margin: 20px 0; }
+.feat-list li { margin-bottom: 10px; color: #555; }
+.price { font-size: 20px; color: var(--primary); font-weight: 800; margin-bottom: 20px; }
 .btn-sec { background: transparent; color: #999; margin-top: 10px; width: 100%; border: none; cursor: pointer; }

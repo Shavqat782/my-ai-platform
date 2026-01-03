@@ -5,31 +5,33 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Halal Guide VIP</title>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
     <link rel="stylesheet" href="style.css">
     <link rel="manifest" href="manifest.json">
 </head>
 <body>
 
+    <div id="preloader"><div class="spinner"></div></div>
+
     <div id="auth-screen">
         <div class="auth-box">
             <div class="logo-area"><i class="fas fa-kaaba"></i></div>
             <h1>Halal Guide</h1>
-            <p>Версия VIP</p>
+            <p>Premium Edition</p>
             
             <div id="login-form">
-                <input type="text" id="l-user" placeholder="Логин">
-                <input type="password" id="l-pass" placeholder="Пароль">
-                <button class="btn-main" onclick="login()">Войти</button>
+                <div class="inp-grp"><i class="fas fa-user"></i><input type="text" id="l-user" placeholder="Логин"></div>
+                <div class="inp-grp"><i class="fas fa-lock"></i><input type="password" id="l-pass" placeholder="Пароль"></div>
+                <button class="btn-main" onclick="login()">ВОЙТИ</button>
                 <div class="link" onclick="toggleAuth()">Нет аккаунта? Регистрация</div>
             </div>
             
             <div id="reg-form" style="display:none;">
-                <input type="text" id="r-user" placeholder="Придумайте Логин">
-                <input type="password" id="r-pass" placeholder="Придумайте Пароль">
-                <button class="btn-main" onclick="register()">Создать</button>
+                <div class="inp-grp"><i class="fas fa-user-plus"></i><input type="text" id="r-user" placeholder="Новый Логин"></div>
+                <div class="inp-grp"><i class="fas fa-key"></i><input type="password" id="r-pass" placeholder="Новый Пароль"></div>
+                <button class="btn-main" onclick="register()">СОЗДАТЬ</button>
                 <div class="link" onclick="toggleAuth()">Есть аккаунт? Вход</div>
             </div>
         </div>
@@ -39,54 +41,58 @@
         
         <div id="tab-home" class="screen active">
             <div class="header">
-                <div><h1>Ассаляму алейкум</h1><h2 id="u-name">...</h2></div>
+                <div><h1>Ас-саляму алейкум</h1><h2 id="u-name">...</h2></div>
                 <div class="badge free" id="u-badge" onclick="openPaywall()">FREE</div>
             </div>
-            
+
             <div class="daily-card">
-                <div class="label"><i class="fas fa-moon"></i> Ильм дня</div>
+                <div class="card-head"><i class="fas fa-star"></i> Ильм дня</div>
                 <div id="d-arabic" class="arabic">...</div>
-                <div id="d-trans" class="trans">...</div>
+                <div id="d-trans" class="trans">Загрузка...</div>
                 <div id="d-source" class="source">...</div>
             </div>
 
             <div class="menu-grid">
                 <div class="menu-btn" onclick="switchTab('scan')"><i class="fas fa-barcode green"></i><span>Сканер</span></div>
-                <div class="menu-btn" onclick="switchTab('chat')"><i class="fas fa-comment-dots gold"></i><span>Имам</span></div>
-                <div class="menu-btn" onclick="switchTab('map')"><i class="fas fa-mosque blue"></i><span>Мечети</span></div>
+                <div class="menu-btn" onclick="switchTab('chat')"><i class="fas fa-mosque gold"></i><span>Имам</span></div>
+                <div class="menu-btn" onclick="switchTab('map')"><i class="fas fa-map-marked-alt blue"></i><span>Мечети</span></div>
                 <div class="menu-btn" onclick="openPaywall()"><i class="fas fa-crown red"></i><span>Premium</span></div>
             </div>
         </div>
 
         <div id="tab-scan" class="screen">
-            <div class="header-small"><h2>Сканер Продуктов</h2></div>
+            <div class="sub-header"><h2>Сканер</h2></div>
             <div class="scan-ui">
-                <div class="reader-box"><div id="reader"></div></div>
-                <p>Наведите на штрихкод</p>
-                <div class="or-divider">ИЛИ</div>
-                <button class="btn-photo" onclick="document.getElementById('file').click()"><i class="fas fa-camera"></i> Фото Состава</button>
-                <input type="file" id="file" hidden accept="image/*" capture="environment">
+                <div class="reader-wrap"><div id="reader"></div><div class="overlay"><div class="laser"></div></div></div>
+                <p>Наведите камеру на штрихкод</p>
+                
+                <div class="actions">
+                    <div class="input-row">
+                        <input type="number" id="barcode-in" placeholder="Или введите цифры">
+                        <button onclick="manualSearch()"><i class="fas fa-arrow-right"></i></button>
+                    </div>
+                    <div class="or">ИЛИ</div>
+                    <button class="btn-photo" onclick="document.getElementById('file').click()"><i class="fas fa-camera"></i> Фото Состава</button>
+                    <input type="file" id="file" hidden accept="image/*" capture="environment">
+                </div>
             </div>
         </div>
 
         <div id="tab-chat" class="screen">
             <div class="chat-head">
-                <div class="avatar"><i class="fas fa-user-graduate"></i></div>
+                <div class="status"></div>
                 <div><h3>Муфтий ИИ</h3><p>Онлайн</p></div>
             </div>
-            <div id="chat-box" class="chat-body"></div>
+            <div id="chat-box" class="chat-body"><div class="msg ai">Ас-саляму алейкум!</div></div>
             <div class="chat-input">
-                <input type="text" id="msg-in" placeholder="Ваш вопрос...">
+                <input type="text" id="msg-in" placeholder="Вопрос...">
                 <button onclick="sendMsg()"><i class="fas fa-paper-plane"></i></button>
             </div>
         </div>
 
         <div id="tab-map" class="screen">
             <div class="map-head">
-                <div class="qibla-info">
-                    <i class="fas fa-compass" id="q-icon"></i>
-                    <span id="q-text">Кибла: ...</span>
-                </div>
+                <i class="fas fa-compass" id="q-icon"></i> <span id="q-text">Кибла: ...</span>
             </div>
             <div id="map"></div>
             <button class="btn-float" onclick="locateUser()"><i class="fas fa-location-arrow"></i></button>
@@ -94,9 +100,9 @@
 
         <div class="navbar">
             <div class="nav-i active" onclick="switchTab('home', this)"><i class="fas fa-home"></i></div>
-            <div class="nav-i" onclick="switchTab('map', this)"><i class="fas fa-map-marked-alt"></i></div>
-            <div class="nav-center" onclick="switchTab('scan', this)"><div class="circle"><i class="fas fa-qrcode"></i></div></div>
-            <div class="nav-i" onclick="switchTab('chat', this)"><i class="fas fa-comments"></i></div>
+            <div class="nav-i" onclick="switchTab('map', this)"><i class="fas fa-map"></i></div>
+            <div class="nav-c" onclick="switchTab('scan', this)"><div class="circle"><i class="fas fa-qrcode"></i></div></div>
+            <div class="nav-i" onclick="switchTab('chat', this)"><i class="fas fa-comment-dots"></i></div>
         </div>
     </div>
 
@@ -105,7 +111,7 @@
             <h2 id="r-title">...</h2>
             <div id="r-badge" class="res-badge">...</div>
             <p id="r-reason">...</p>
-            <div id="r-list-box"><ul id="r-list"></ul></div>
+            <div id="r-ingr" class="ingr-box"></div>
             <button class="btn-main" onclick="closeModal('res-modal')">Закрыть</button>
         </div>
     </div>
@@ -113,10 +119,15 @@
     <div id="pay-modal" class="modal">
         <div class="modal-card pay-card">
             <i class="fas fa-crown big-icon"></i>
-            <h2>Premium</h2>
+            <h2>Premium Доступ</h2>
             <p>Лимит бесплатных проверок исчерпан.</p>
-            <ul><li>Безлимит</li><li>Умное фото</li><li>Мечети</li></ul>
-            <button class="btn-main" onclick="buyPremium()">Купить (15 TJS)</button>
+            <ul class="feat-list">
+                <li>✅ Безлимитный сканер</li>
+                <li>✅ Распознавание фото</li>
+                <li>✅ Приоритет Имама</li>
+            </ul>
+            <div class="price">15 TJS / месяц</div>
+            <button class="btn-main" onclick="buyPremium()">Купить</button>
             <button class="btn-sec" onclick="closeModal('pay-modal')">Отмена</button>
         </div>
     </div>
