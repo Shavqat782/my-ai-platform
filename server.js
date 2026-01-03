@@ -1,347 +1,149 @@
-require('dotenv').config();
+/* HALAL GUIDE ULTIMATE SERVER */
 const express = require('express');
-const axios = require('axios');
+const mongoose = require('mongoose');
 const cors = require('cors');
-const path = require('path');
+const bcrypt = require('bcryptjs');
+const jwt = require('jsonwebtoken');
+const { GoogleGenerativeAI } = require('@google/generative-ai');
+const fetch = (...args) => import('node-fetch').then(({default: fetch}) => fetch(...args));
+require('dotenv').config();
 
 const app = express();
-const PORT = process.env.PORT || 3000;
-
-// Middleware
-app.use(cors());
 app.use(express.json({ limit: '50mb' }));
-app.use(express.urlencoded({ extended: true, limit: '50mb' }));
+app.use(cors());
 app.use(express.static('public'));
 
-// Gemini API Keys
-const geminiKeys = [
-  process.env.KEY1,
-  process.env.KEY2,
-  process.env.KEY3,
-  process.env.KEY4,
-  process.env.KEY5,
-  process.env.KEY6
-].filter(key => key && key.length > 5);
+// --- БАЗА ДАННЫХ ---
+mongoose.connect(process.env.MONGO_URI)
+    .then(() => console.log('✅ MongoDB Connected'))
+    .catch(err => console.error('❌ MongoDB Error:', err));
 
-let currentKeyIndex = 0;
+const UserSchema = new mongoose.Schema({
+    username: { type: String, required: true, unique: true },
+    password: { type: String, required: true },
+    isPremium: { type: Boolean, default: false },
+    scansToday: { type: Number, default: 0 },
+    lastLogin: { type: String, default: new Date().toLocaleDateString() }
+});
+const User = mongoose.model('User', UserSchema);
 
-function getNextGeminiKey() {
-  if (geminiKeys.length === 0) {
-    throw new Error('No Gemini API keys configured');
-  }
-  const key = geminiKeys[currentKeyIndex];
-  currentKeyIndex = (currentKeyIndex + 1) % geminiKeys.length;
-  return key;
-}
+// --- AI CONFIG ---
+const apiKeys = [process.env.KEY1, process.env.KEY2, process.env.KEY3, process.env.KEY4, process.env.KEY5, process.env.KEY6].filter(k => k);
+function getClient() { return new GoogleGenerativeAI(apiKeys[Math.floor(Math.random() * apiKeys.length)]); }
 
-// Gemini AI Functions
-async function analyzeWithGemini(prompt) {
-  for (let i = 0; i < geminiKeys.length; i++) {
+const ANALYZE_PROMPT = `
+Ты — Мусульманский технолог. Найди ХАРАМ.
+Критерии: Свинина, Е120, Кармин, Спирт/Этанол, Желатин (не халяль).
+JSON: { "status": "HALAL"|"HARAM"|"MUSHBOOH", "reason": "...", "ingredients_detected": [...] }
+`;
+const IMAM_PROMPT = `Ты Муфтий. Отвечай на вопросы по Исламу мудро, с доводами. На таджикском пиши кириллицей.`;
+
+// --- MIDDLEWARE ---
+const auth = async (req, res, next) => {
     try {
-      const apiKey = getNextGeminiKey();
-      const response = await axios.post(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key=${apiKey}`,
-        {
-          contents: [{
-            parts: [{
-              text: prompt
-            }]
-          }],
-          generationConfig: {
-            temperature: 0.1,
-            maxOutputTokens: 2000
-          }
-        },
-        {
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          timeout: 30000
-        }
-      );
-      
-      if (response.data.candidates && response.data.candidates[0]) {
-        return response.data.candidates[0].content.parts[0].text;
-      }
-    } catch (error) {
-      console.log(`Key ${currentKeyIndex} failed: ${error.message}`);
-      continue;
-    }
-  }
-  throw new Error('All Gemini API keys failed');
-}
+        const token = req.header('Authorization');
+        if(!token) return res.status(401).json({error: "Auth Error"});
+        const decoded = jwt.verify(token, process.env.JWT_SECRET);
+        const user = await User.findById(decoded.userId);
+        
+        const today = new Date().toLocaleDateString();
+        if(user.lastLogin !== today) { user.scansToday = 0; user.lastLogin = today; await user.save(); }
+        req.user = user; next();
+    } catch(e) { res.status(401).json({error: "Token Invalid"}); }
+};
 
-// Routes
-app.get('/api/health', (req, res) => {
-  res.json({ 
-    status: 'ok', 
-    keys: geminiKeys.length,
-    message: 'Halal Scanner API is running'
-  });
-});
+const checkLimit = async (req, res, next) => {
+    if(req.user.isPremium) return next();
+    if(req.user.scansToday >= 3) return res.status(403).json({error: "LIMIT", message: "Лимит исчерпан"});
+    req.user.scansToday += 1; await req.user.save(); next();
+};
 
-// Check barcode
-app.post('/api/check-barcode', async (req, res) => {
-  try {
-    const { barcode } = req.body;
-    
-    if (!barcode) {
-      return res.status(400).json({ success: false, message: 'Barcode is required' });
-    }
-    
-    const prompt = `Analyze product with barcode ${barcode}. 
-    Determine if it's halal or haram for Muslims.
-    Consider ingredients, manufacturing process, and Islamic dietary laws.
-    
-    Format response as JSON:
-    {
-      "name": "product name or 'Unknown Product'",
-      "halalStatus": "halal/haram/mashbooh/unknown",
-      "ingredients": ["list if known"],
-      "description": "detailed explanation",
-      "verification": "AI analysis"
-    }`;
-    
-    const geminiResponse = await analyzeWithGemini(prompt);
-    
+// --- AUTH API ---
+app.post('/api/register', async (req, res) => {
     try {
-      const productInfo = JSON.parse(geminiResponse);
-      res.json({
-        success: true,
-        product: {
-          barcode,
-          ...productInfo
-        }
-      });
-    } catch (e) {
-      // If not valid JSON, return as description
-      res.json({
-        success: true,
-        product: {
-          barcode,
-          name: 'Product Analysis',
-          halalStatus: 'unknown',
-          description: geminiResponse,
-          verification: 'AI analysis'
-        }
-      });
-    }
-  } catch (error) {
-    console.error('Barcode check error:', error);
-    res.status(500).json({ 
-      success: false, 
-      message: error.message || 'Internal server error' 
-    });
-  }
+        const { username, password } = req.body;
+        const hash = await bcrypt.hash(password, 10);
+        const user = new User({ username, password: hash });
+        await user.save();
+        const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET);
+        res.json({ token, username });
+    } catch(e) { res.status(400).json({ error: "Имя занято" }); }
 });
 
-// Check ingredients from text
-app.post('/api/check-ingredients', async (req, res) => {
-  try {
-    const { ingredientsText } = req.body;
-    
-    if (!ingredientsText) {
-      return res.status(400).json({ success: false, message: 'Ingredients text is required' });
-    }
-    
-    const prompt = `Analyze these ingredients and determine if product is halal or haram for Muslims:
-    "${ingredientsText}"
-    
-    Pay special attention to:
-    - Pork and derivatives
-    - Alcohol
-    - Animal enzymes
-    - Gelatin sources
-    - E-numbers of animal origin
-    
-    Format response as JSON:
-    {
-      "halalStatus": "halal/haram/mashbooh/unknown",
-      "ingredients": ["parsed ingredients"],
-      "riskyIngredients": ["list of potentially haram ingredients"],
-      "description": "detailed explanation with Islamic rulings",
-      "verification": "AI text analysis"
-    }`;
-    
-    const geminiResponse = await analyzeWithGemini(prompt);
-    
+app.post('/api/login', async (req, res) => {
     try {
-      const analysis = JSON.parse(geminiResponse);
-      res.json({ success: true, analysis });
-    } catch (e) {
-      res.json({
-        success: true,
-        analysis: {
-          halalStatus: 'unknown',
-          description: geminiResponse,
-          verification: 'AI analysis'
-        }
-      });
-    }
-  } catch (error) {
-    console.error('Ingredients check error:', error);
-    res.status(500).json({ 
-      success: false, 
-      message: error.message 
-    });
-  }
+        const { username, password } = req.body;
+        const user = await User.findOne({ username });
+        if(!user || !(await bcrypt.compare(password, user.password))) return res.status(400).json({ error: "Ошибка входа" });
+        const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET);
+        res.json({ token, username, isPremium: user.isPremium });
+    } catch(e) { res.status(500).json({ error: "Ошибка сервера" }); }
 });
 
-// Chat with Imam
-app.post('/api/ask-imam', async (req, res) => {
-  try {
-    const { question } = req.body;
-    
-    if (!question) {
-      return res.status(400).json({ success: false, message: 'Question is required' });
-    }
-    
-    const prompt = `You are an Islamic scholar (Imam) answering questions about Islam.
-    Question: ${question}
-    
-    Provide a detailed, authentic Islamic response based on Quran and Sunnah.
-    Include relevant Quranic verses and Hadith if applicable.
-    If the question is about halal/haram food, provide specific rulings.
-    
-    Keep response clear and organized.`;
-    
-    const response = await analyzeWithGemini(prompt);
-    
-    res.json({
-      success: true,
-      response
-    });
-  } catch (error) {
-    console.error('Imam chat error:', error);
-    res.status(500).json({ 
-      success: false, 
-      message: error.message 
-    });
-  }
+app.post('/api/buy', auth, async (req, res) => {
+    req.user.isPremium = true; await req.user.save();
+    res.json({ success: true });
 });
 
-// Find mosques and qibla direction
-app.post('/api/find-mosques', async (req, res) => {
-  try {
-    const { latitude, longitude } = req.body;
-    
-    if (!latitude || !longitude) {
-      return res.status(400).json({ success: false, message: 'Latitude and longitude are required' });
-    }
-    
-    const prompt = `Given coordinates latitude ${latitude}, longitude ${longitude},
-    provide information about nearby mosques and Islamic centers.
-    Also calculate Qibla direction from this location to Mecca.
-    
-    Format response as JSON:
-    {
-      "location": {
-        "latitude": ${latitude},
-        "longitude": ${longitude}
-      },
-      "qiblaDirection": "degrees from north",
-      "prayerDirections": {
-        "fajr": "direction",
-        "dhuhr": "direction",
-        "asr": "direction",
-        "maghrib": "direction",
-        "isha": "direction"
-      },
-      "nearbyMosques": [
-        {
-          "name": "mosque name",
-          "distance": "approx distance",
-          "address": "general address"
-        }
-      ],
-      "instructions": "prayer and qibla instructions"
-    }`;
-    
-    const geminiResponse = await analyzeWithGemini(prompt);
-    
+app.get('/api/me', auth, (req, res) => res.json({ user: req.user }));
+
+// --- FUNCTION API ---
+
+// 1. ШТРИХКОД
+app.post('/api/barcode', auth, checkLimit, async (req, res) => {
     try {
-      const mosqueInfo = JSON.parse(geminiResponse);
-      res.json({ success: true, ...mosqueInfo });
-    } catch (e) {
-      res.json({
-        success: true,
-        location: { latitude, longitude },
-        qiblaDirection: "Calculate manually",
-        instructions: "Use compass app for Qibla direction"
-      });
-    }
-  } catch (error) {
-    console.error('Mosque find error:', error);
-    res.status(500).json({ 
-      success: false, 
-      message: error.message 
-    });
-  }
+        const { code } = req.body;
+        // 1. Ищем в базе OpenFoodFacts
+        const dbRes = await fetch(`https://world.openfoodfacts.org/api/v0/product/${code}.json`);
+        const data = await dbRes.json();
+
+        if (data.status === 1) {
+            const p = data.product;
+            const name = p.product_name_ru || p.product_name || "Товар";
+            const ings = p.ingredients_text_ru || p.ingredients_text_en;
+            
+            if (ings) {
+                // Если есть состав - анализируем ИИ
+                const model = getClient().getGenerativeModel({ model: "gemini-flash-latest" });
+                const aiRes = await model.generateContent([ANALYZE_PROMPT, `Товар: ${name}. Состав: ${ings}`]);
+                const text = aiRes.response.text().replace(/```json|```/g, '').trim();
+                return res.json({ found: true, hasIngredients: true, name, ...JSON.parse(text) });
+            }
+            // Товар есть, состава нет
+            return res.json({ found: true, hasIngredients: false, name });
+        }
+        // Товара нет
+        res.json({ found: false });
+    } catch (e) { res.status(500).json({ error: "Ошибка сервера" }); }
 });
 
-// Simple authentication (for demo purposes)
-const users = {};
-
-app.post('/api/register', (req, res) => {
-  const { username, password } = req.body;
-  
-  if (!username || !password) {
-    return res.status(400).json({ success: false, message: 'Username and password required' });
-  }
-  
-  if (users[username]) {
-    return res.status(400).json({ success: false, message: 'User already exists' });
-  }
-  
-  users[username] = { password, createdAt: new Date() };
-  
-  res.json({ 
-    success: true, 
-    message: 'User registered successfully',
-    token: `demo-token-${username}`
-  });
+// 2. ФОТО
+app.post('/api/photo', auth, checkLimit, async (req, res) => {
+    try {
+        const { image } = req.body;
+        const model = getClient().getGenerativeModel({ model: "gemini-flash-latest" });
+        const result = await model.generateContent([ANALYZE_PROMPT, { inlineData: { data: image.split(',')[1], mimeType: "image/jpeg" } }]);
+        const text = result.response.text().replace(/```json|```/g, '').trim();
+        res.json(JSON.parse(text));
+    } catch (e) { res.status(500).json({ status: "ERROR" }); }
 });
 
-app.post('/api/login', (req, res) => {
-  const { username, password } = req.body;
-  
-  if (!username || !password) {
-    return res.status(400).json({ success: false, message: 'Username and password required' });
-  }
-  
-  const user = users[username];
-  
-  if (!user || user.password !== password) {
-    return res.status(401).json({ success: false, message: 'Invalid credentials' });
-  }
-  
-  res.json({ 
-    success: true, 
-    message: 'Login successful',
-    token: `demo-token-${username}`
-  });
+// 3. ЧАТ
+app.post('/api/chat', auth, async (req, res) => {
+    try {
+        const model = getClient().getGenerativeModel({ model: "gemini-flash-latest", systemInstruction: IMAM_PROMPT });
+        const result = await model.generateContent(req.body.message);
+        res.json({ text: result.response.text() });
+    } catch (e) { res.status(500).json({ text: "Ошибка связи." }); }
 });
 
-// Serve static files from public directory
-app.use(express.static(path.join(__dirname, 'public')));
-
-// Serve index.html for all other routes
-app.get('*', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'index.html'));
+// 4. ДЕНЬ
+app.get('/api/daily', async (req, res) => {
+    try {
+        const model = getClient().getGenerativeModel({ model: "gemini-flash-latest" });
+        const result = await model.generateContent(`Пришли 1 Аят или Хадис JSON: {"arabic": "...", "translation": "...", "source": "..."}`);
+        res.json(JSON.parse(result.response.text().replace(/```json|```/g, '').trim()));
+    } catch (e) { res.json({ translation: "Аллах велик", arabic: "الله أكبر" }); }
 });
 
-// Error handling middleware
-app.use((err, req, res, next) => {
-  console.error(err.stack);
-  res.status(500).json({ 
-    success: false, 
-    message: 'Something went wrong!',
-    error: process.env.NODE_ENV === 'development' ? err.message : undefined
-  });
-});
-
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
-  console.log(`Available Gemini keys: ${geminiKeys.length}`);
-  console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
-});
+app.listen(process.env.PORT || 3000, () => console.log('🚀 Server OK'));
