@@ -1,0 +1,21 @@
+{
+  "name": "Halal Guide Premium",
+  "short_name": "HalalGuide",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0F5132",
+  "theme_color": "#0F5132",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "https://cdn-icons-png.flaticon.com/512/4358/4358667.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "https://cdn-icons-png.flaticon.com/512/4358/4358667.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}

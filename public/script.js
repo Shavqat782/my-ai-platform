@@ -1,3 +1,5 @@
+// Вставь сюда ссылку, которую дал Render (без слэша в конце)
+const API_URL = "https://abdulla-ai-pro.onrender.com";
 let token = localStorage.getItem('token');
 let scanner = null;
 let map = null;
@@ -10,7 +12,7 @@ window.onload = () => {
 
 // --- AUTH ---
 async function checkAuth() {
-    const res = await fetch('/api/me', { headers: { 'Authorization': token }});
+    const res = await fetch(https://abdulla-ai-pro.onrender.com + '/api/me', { headers: { 'Authorization': token }});
     if(res.ok) {
         const d = await res.json();
         setupUser(d.user);
@@ -38,7 +40,7 @@ function toggleAuth() {
 async function login() {
     const u = document.getElementById('l-user').value;
     const p = document.getElementById('l-pass').value;
-    const res = await fetch('/api/login', {
+    const res = await fetch(https://abdulla-ai-pro.onrender.com + '/api/login', {
         method:'POST', headers:{'Content-Type':'application/json'},
         body:JSON.stringify({username:u, password:p})
     });
@@ -50,7 +52,7 @@ async function login() {
 async function register() {
     const u = document.getElementById('r-user').value;
     const p = document.getElementById('r-pass').value;
-    const res = await fetch('/api/register', {
+    const res = await fetch(https://abdulla-ai-pro.onrender.com + '/api/register', {
         method:'POST', headers:{'Content-Type':'application/json'},
         body:JSON.stringify({username:u, password:p})
     });
@@ -81,7 +83,7 @@ async function onScan(code) {
     stopScan();
     showResult({ name: "Анализ...", status: "MUSHBOOH", reason: "Загрузка..." });
     
-    const res = await fetch('/api/barcode', {
+    const res = await fetch(https://abdulla-ai-pro.onrender.com + '/api/barcode', {
         method:'POST', headers:{'Content-Type':'application/json', 'Authorization':token},
         body:JSON.stringify({code})
     });
@@ -106,7 +108,7 @@ document.getElementById('file').addEventListener('change', async (e) => {
     const r = new FileReader();
     r.onload = async (ev) => {
         showResult({ name: "Фото...", status: "MUSHBOOH", reason: "Анализ ИИ..." });
-        const res = await fetch('/api/photo', {
+        const res = await fetch(https://abdulla-ai-pro.onrender.com + '/api/photo', {
             method:'POST', headers:{'Content-Type':'application/json', 'Authorization':token},
             body:JSON.stringify({image:ev.target.result})
         });
@@ -183,7 +185,7 @@ async function sendMsg() {
     addMsg(txt, 'user');
     inp.value = '';
     
-    const res = await fetch('/api/chat', {
+    const res = await fetch(https://abdulla-ai-pro.onrender.com + '/api/chat', {
         method:'POST', headers:{'Content-Type':'application/json', 'Authorization':token},
         body:JSON.stringify({message:txt})
     });
@@ -200,11 +202,11 @@ function addMsg(txt, type) {
 // --- PAYWALL & EXTRAS ---
 function openPaywall() { document.getElementById('pay-modal').style.display = 'flex'; }
 async function buyPremium() {
-    await fetch('/api/buy', {method:'POST', headers:{'Authorization':token}});
+    await fetch(https://abdulla-ai-pro.onrender.com + '/api/buy', {method:'POST', headers:{'Authorization':token}});
     alert("Куплено!"); location.reload();
 }
 async function loadDaily() {
-    const r = await fetch('/api/daily'); const d = await r.json();
+    const r = await fetch(https://abdulla-ai-pro.onrender.com + '/api/daily'); const d = await r.json();
     document.getElementById('d-arabic').innerText = d.arabic;
     document.getElementById('d-trans').innerText = d.translation;
     document.getElementById('d-source').innerText = d.source;
