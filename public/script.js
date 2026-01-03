@@ -219,3 +219,19 @@ async function buyPremium() {
     await fetch('/api/buy', {method:'POST',headers:{'Authorization':token}});
     alert("Оплата прошла!"); location.reload();
 }
+// Функция копирования номера карты
+function copyCard() {
+    const num = document.getElementById('card-number').innerText;
+    navigator.clipboard.writeText(num).then(() => alert("Номер карты скопирован!"));
+}
+
+// Открытие твоего Телеграма
+function openTelegram() {
+    // ЗАМЕНИ 'Abdulla_TG' НА СВОЙ НИК В ТЕЛЕГРАМЕ (без @)
+    const myTelegram = "Abdulla_TG"; 
+    // Мы передаем имя пользователя, чтобы ты знал, кого активировать
+    const username = document.getElementById('u-name').innerText;
+    const text = `Ас-саляму алейкум! Я оплатил Premium для пользователя: ${username}. Вот чек.`;
+    
+    window.open(`https://t.me/${myTelegram}?text=${encodeURIComponent(text)}`, '_blank');
+}

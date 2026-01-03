@@ -117,20 +117,32 @@
     </div>
 
     <div id="pay-modal" class="modal">
-        <div class="modal-card pay-card">
-            <i class="fas fa-crown big-icon"></i>
-            <h2>Premium Доступ</h2>
-            <p>Лимит бесплатных проверок исчерпан.</p>
-            <ul class="feat-list">
-                <li>✅ Безлимитный сканер</li>
-                <li>✅ Распознавание фото</li>
-                <li>✅ Приоритет Имама</li>
-            </ul>
-            <div class="price">15 TJS / месяц</div>
-            <button class="btn-main" onclick="buyPremium()">Купить</button>
-            <button class="btn-sec" onclick="closeModal('pay-modal')">Отмена</button>
+    <div class="modal-card pay-card">
+        <i class="fas fa-crown big-icon"></i>
+        <h2>Стать VIP</h2>
+        <p>Получите безлимит и поддержку Имама.</p>
+        
+        <div class="payment-info">
+            <p>Цена: <strong>15 TJS / месяц</strong></p>
+            <div class="card-box">
+                <span>Алиф / Душанбе Сити:</span>
+                <b id="card-number">9876 5432 1098 7654</b>
+                <button class="btn-copy" onclick="copyCard()">Копировать</button>
+            </div>
+            <p class="instruction">
+                1. Переведите 15 сомони.<br>
+                2. Сделайте скриншот чека.<br>
+                3. Отправьте скриншот Администратору.
+            </p>
         </div>
+
+        <button class="btn-tg" onclick="openTelegram()">
+            <i class="fab fa-telegram"></i> Отправить чек Админу
+        </button>
+        
+        <button class="btn-sec" onclick="closeModal('pay-modal')">Закрыть</button>
     </div>
+</div>
 
     <script src="script.js"></script>
 </body>

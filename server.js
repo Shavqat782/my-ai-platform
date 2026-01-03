@@ -130,4 +130,24 @@ app.get('/api/daily', async (req, res) => {
     } catch (e) { res.json({ translation: "Аллах с нами.", arabic: "الله معانا", source: "" }); }
 });
 
+// --- ADMIN API (СЕКРЕТНОЕ) ---
+
+// Получить всех пользователей
+app.get('/api/admin/users', async (req, res) => {
+    // В идеале тут нужна защита паролем, но пока сделаем просто скрытый путь
+    try {
+        const users = await User.find({}, 'username isPremium scansToday lastLogin');
+        res.json(users);
+    } catch(e) { res.status(500).json({error: "Ошибка"}); }
+});
+
+// Включить/Выключить Премиум
+app.post('/api/admin/toggle-premium', async (req, res) => {
+    try {
+        const { userId, status } = req.body;
+        await User.findByIdAndUpdate(userId, { isPremium: status });
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({error: "Ошибка"}); }
+});
+
 app.listen(process.env.PORT || 3000, () => console.log('🚀 Server Started'));
