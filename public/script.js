@@ -1,211 +1,249 @@
-let token = localStorage.getItem('token');
-let scanner = null;
+let html5QrcodeScanner = null;
 let map = null;
-let userPos = null;
+let userMarker = null;
 
+// ЗАГРУЗКА
 window.onload = () => {
-    if(token) checkAuth();
-    else document.getElementById('auth-screen').style.display = 'flex';
+    setTimeout(() => document.getElementById('preloader').style.display = 'none', 1000);
+    loadDaily();
 };
 
-// --- AUTH ---
-async function checkAuth() {
-    const res = await fetch('/api/me', { headers: { 'Authorization': token }});
-    if(res.ok) {
-        const d = await res.json();
-        setupUser(d.user);
-    } else { document.getElementById('auth-screen').style.display = 'flex'; }
-}
-
-function setupUser(u) {
-    document.getElementById('auth-screen').style.display = 'none';
-    document.getElementById('app').style.display = 'block';
-    document.getElementById('u-name').innerText = u.username;
-    if(u.isPremium) {
-        const b = document.getElementById('u-badge');
-        b.innerText = "VIP"; b.classList.remove('free'); b.classList.add('premium');
-    }
-    loadDaily();
-}
-
-function toggleAuth() {
-    const l = document.getElementById('login-form');
-    const r = document.getElementById('reg-form');
-    if(l.style.display === 'none') { l.style.display = 'block'; r.style.display = 'none'; }
-    else { l.style.display = 'none'; r.style.display = 'block'; }
-}
-
-async function login() {
-    const u = document.getElementById('l-user').value;
-    const p = document.getElementById('l-pass').value;
-    const res = await fetch('/api/login', {
-        method:'POST', headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({username:u, password:p})
-    });
-    const d = await res.json();
-    if(d.token) { localStorage.setItem('token', d.token); token = d.token; checkAuth(); }
-    else alert(d.error);
-}
-
-async function register() {
-    const u = document.getElementById('r-user').value;
-    const p = document.getElementById('r-pass').value;
-    const res = await fetch('/api/register', {
-        method:'POST', headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({username:u, password:p})
-    });
-    if(res.ok) { alert("Готово! Войдите"); toggleAuth(); }
-    else alert("Ошибка");
-}
-
-// --- TABS ---
-function switchTab(t, el) {
+function switchTab(tab, el) {
     document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
-    document.getElementById(`tab-${t}`).classList.add('active');
-    document.querySelectorAll('.nav-i').forEach(n => n.classList.remove('active'));
-    if(el) el.classList.add('active');
-
-    if(t === 'scan') startScan(); else stopScan();
-    if(t === 'map') setTimeout(initMap, 200); // Fix map render issue
-}
-
-// --- SCANNER ---
-function startScan() {
-    if(scanner) return;
-    scanner = new Html5Qrcode("reader");
-    scanner.start({ facingMode: "environment" }, { fps: 10, qrbox: 250 }, onScan);
-}
-function stopScan() { if(scanner) scanner.stop().then(() => { scanner.clear(); scanner = null; }); }
-
-async function onScan(code) {
-    stopScan();
-    showResult({ name: "Анализ...", status: "MUSHBOOH", reason: "Загрузка..." });
+    document.getElementById(`tab-${tab}`).classList.add('active');
     
-    const res = await fetch('/api/barcode', {
-        method:'POST', headers:{'Content-Type':'application/json', 'Authorization':token},
-        body:JSON.stringify({code})
-    });
-    
-    if(res.status === 403) return openPaywall();
-    const d = await res.json();
+    // Подсветка кнопок
+    document.querySelectorAll('.nav-btn').forEach(btn => btn.classList.remove('active'));
+    if(el && !el.classList.contains('nav-btn-center')) el.classList.add('active');
 
-    if(!d.found) {
-        if(confirm("Товара нет в базе. Сфотографировать состав?")) document.getElementById('file').click();
-        else startScan();
-        return;
-    }
-    if(!d.hasIngredients) {
-        if(confirm("Состав не найден. Сфотографировать?")) document.getElementById('file').click();
-        return;
-    }
-    showResult(d);
+    // Логика вкладок
+    if (tab === 'scan') startScanner(); else stopScanner();
+    if (tab === 'map') initMap(); // Загружаем карту только когда открыли вкладку
 }
 
-document.getElementById('file').addEventListener('change', async (e) => {
-    const f = e.target.files[0]; if(!f) return;
-    const r = new FileReader();
-    r.onload = async (ev) => {
-        showResult({ name: "Фото...", status: "MUSHBOOH", reason: "Анализ ИИ..." });
-        const res = await fetch('/api/photo', {
-            method:'POST', headers:{'Content-Type':'application/json', 'Authorization':token},
-            body:JSON.stringify({image:ev.target.result})
-        });
-        if(res.status === 403) return openPaywall();
-        const d = await res.json();
-        d.name = "Фото состава"; d.found = true;
-        showResult(d);
-    };
-    r.readAsDataURL(f);
-});
-
-function showResult(d) {
-    document.getElementById('res-modal').style.display = 'flex';
-    document.getElementById('r-title').innerText = d.name;
-    document.getElementById('r-reason').innerText = d.reason;
-    const b = document.getElementById('r-badge');
-    b.className = 'res-badge ' + (d.status==='HALAL'?'halal':d.status==='HARAM'?'haram':'mushbooh');
-    b.innerText = d.status;
-}
-function closeModal(id) {
-    document.getElementById(id).style.display = 'none';
-    if(id==='res-modal' && document.getElementById('tab-scan').classList.contains('active')) startScan();
+// --- ХАДИС ---
+async function loadDaily() {
+    try {
+        const res = await fetch('/api/daily');
+        const data = await res.json();
+        document.getElementById('daily-arabic').innerText = data.arabic || "";
+        document.getElementById('daily-translation').innerText = data.translation;
+        document.getElementById('daily-source').innerText = data.source;
+    } catch(e){}
 }
 
-// --- MAP & QIBLA ---
+// --- КАРТА И КИБЛА (НОВОЕ!) ---
 function initMap() {
-    if(map) { map.invalidateSize(); return; }
-    map = L.map('map').setView([38.55, 68.78], 13);
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
-    locateUser();
+    if (map) return; // Если уже создана, не трогаем
+
+    // Создаем карту (по умолчанию Душанбе)
+    map = L.map('map').setView([38.5598, 68.7870], 13);
+
+    // Добавляем слой (вид карты) - бесплатный OpenStreetMap
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: 'Map data © OpenStreetMap contributors'
+    }).addTo(map);
+
+    locateMe(); // Сразу ищем юзера
 }
 
-function locateUser() {
-    navigator.geolocation.getCurrentPosition(pos => {
-        const {latitude, longitude} = pos.coords;
-        userPos = {lat: latitude, lng: longitude};
+function locateMe() {
+    if (!navigator.geolocation) return alert("Ваш браузер не поддерживает GPS");
+
+    document.getElementById('qibla-text').innerText = "Ищем спутники...";
+    
+    navigator.geolocation.getCurrentPosition(position => {
+        const lat = position.coords.latitude;
+        const lng = position.coords.longitude;
+
+        // Двигаем карту
+        map.setView([lat, lng], 15);
         
-        map.setView([latitude, longitude], 15);
-        L.marker([latitude, longitude]).addTo(map).bindPopup("Я").openPopup();
-        
-        // QIBLA
-        const qibla = calculateQibla(latitude, longitude);
-        document.getElementById('q-icon').style.transform = `rotate(${qibla}deg)`;
-        document.getElementById('q-text').innerText = `Кибла: ${Math.round(qibla)}°`;
-        
-        // MOSQUES (Overpass API)
-        findMosques(latitude, longitude);
+        // Ставим метку "Я"
+        if (userMarker) map.removeLayer(userMarker);
+        userMarker = L.marker([lat, lng]).addTo(map).bindPopup("Вы здесь").openPopup();
+
+        // 1. СЧИТАЕМ КИБЛУ (Математика)
+        const qiblaAngle = calculateQibla(lat, lng);
+        const arrow = document.getElementById('qibla-arrow');
+        arrow.style.transform = `rotate(${qiblaAngle}deg)`; // Крутим стрелку
+        document.getElementById('qibla-text').innerText = `Кибла: ${Math.round(qiblaAngle)}° (Стрелка указывает)`;
+
+        // 2. ИЩЕМ МЕЧЕТИ РЯДОМ (Через Overpass API - бесплатная база карт)
+        findMosques(lat, lng);
+
+    }, () => {
+        alert("Не удалось определить местоположение. Включите GPS.");
     });
 }
 
 function calculateQibla(lat, lng) {
-    const kLat = 21.4225, kLng = 39.8262;
-    const y = Math.sin((kLng-lng) * Math.PI/180);
-    const x = Math.cos(lat*Math.PI/180)*Math.tan(kLat*Math.PI/180) - Math.sin(lat*Math.PI/180)*Math.cos((kLng-lng)*Math.PI/180);
-    return (Math.atan2(y, x) * 180/Math.PI + 360) % 360;
+    const kaabaLat = 21.4225;
+    const kaabaLng = 39.8262;
+    const y = Math.sin((kaabaLng - lng) * (Math.PI / 180));
+    const x = Math.cos(lat * (Math.PI / 180)) * Math.tan(kaabaLat * (Math.PI / 180)) - Math.sin(lat * (Math.PI / 180)) * Math.cos((kaabaLng - lng) * (Math.PI / 180));
+    let angle = Math.atan2(y, x) * (180 / Math.PI);
+    return (angle + 360) % 360; // Угол в градусах
 }
 
 async function findMosques(lat, lng) {
-    const q = `[out:json];node["amenity"="place_of_worship"]["religion"="muslim"](around:2000,${lat},${lng});out;`;
-    const res = await fetch(`https://overpass-api.de/api/interpreter?data=${encodeURIComponent(q)}`);
-    const d = await res.json();
-    d.elements.forEach(m => {
-        L.marker([m.lat, m.lon], {icon: L.divIcon({html:'<i class="fas fa-mosque" style="color:green;font-size:24px"></i>', className:''})})
-        .addTo(map)
-        .bindPopup(`<b>${m.tags.name || "Мечеть"}</b><br><a href="https://www.google.com/maps/dir/?api=1&destination=${m.lat},${m.lon}" target="_blank">Маршрут</a>`);
-    });
+    // Ищем мечети в радиусе 3км через OpenStreetMap API
+    const query = `
+        [out:json];
+        (node["amenity"="place_of_worship"]["religion"="muslim"](around:3000,${lat},${lng});
+         way["amenity"="place_of_worship"]["religion"="muslim"](around:3000,${lat},${lng}););
+        out;
+    `;
+    const url = `https://overpass-api.de/api/interpreter?data=${encodeURIComponent(query)}`;
+
+    try {
+        const res = await fetch(url);
+        const data = await res.json();
+        
+        data.elements.forEach(place => {
+            const pLat = place.lat || place.center.lat;
+            const pLng = place.lon || place.center.lon;
+            // Добавляем зеленый маркер мечети
+            const icon = L.divIcon({html: '<i class="fas fa-mosque" style="color:green; font-size:24px;"></i>', className: 'mosque-icon'});
+            L.marker([pLat, pLng], {icon: icon}).addTo(map)
+             .bindPopup(place.tags.name || "Мечеть");
+        });
+    } catch(e) { console.log("Ошибка поиска мечетей"); }
 }
 
-// --- CHAT ---
-async function sendMsg() {
-    const inp = document.getElementById('msg-in');
-    const txt = inp.value; if(!txt) return;
+// --- ЧАТ (ИСПРАВЛЕНО!) ---
+async function sendMessage() {
+    const input = document.getElementById('chat-input');
+    const text = input.value.trim();
+    if(!text) return;
+
+    addMsg(text, 'user');
+    input.value = '';
     
-    addMsg(txt, 'user');
-    inp.value = '';
-    
-    const res = await fetch('/api/chat', {
-        method:'POST', headers:{'Content-Type':'application/json', 'Authorization':token},
-        body:JSON.stringify({message:txt})
-    });
-    const d = await res.json();
-    addMsg(d.text, 'ai');
-}
-function addMsg(txt, type) {
-    const d = document.createElement('div');
-    d.className = `msg ${type}`;
-    d.innerHTML = txt.replace(/\*\*(.*?)\*\*/g, '<b>$1</b>');
-    document.getElementById('chat-box').appendChild(d);
+    const loadingId = addMsg('Муфтий пишет...', 'ai', true);
+
+    try {
+        const res = await fetch('/api/chat', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ message: text })
+        });
+        const data = await res.json();
+        
+        document.getElementById(loadingId).remove();
+        addMsg(data.text, 'ai');
+    } catch (e) {
+        document.getElementById(loadingId).innerText = "Ошибка сервера. Попробуйте позже.";
+    }
 }
 
-// --- PAYWALL & EXTRAS ---
-function openPaywall() { document.getElementById('pay-modal').style.display = 'flex'; }
-async function buyPremium() {
-    await fetch('/api/buy', {method:'POST', headers:{'Authorization':token}});
-    alert("Куплено!"); location.reload();
+function addMsg(text, sender, isTemp = false) {
+    const div = document.createElement('div');
+    div.className = `msg ${sender}`;
+    if(isTemp) div.id = 'temp-msg';
+    div.innerHTML = text.replace(/\*\*(.*?)\*\*/g, '<b>$1</b>');
+    document.getElementById('chat-history').appendChild(div);
+    return div.id;
 }
-async function loadDaily() {
-    const r = await fetch('/api/daily'); const d = await r.json();
-    document.getElementById('d-arabic').innerText = d.arabic;
-    document.getElementById('d-trans').innerText = d.translation;
-    document.getElementById('d-source').innerText = d.source;
+
+// --- СКАНЕР (Остался прежним) ---
+function startScanner() {
+    if(html5QrcodeScanner) return;
+    html5QrcodeScanner = new Html5Qrcode("reader");
+    html5QrcodeScanner.start({ facingMode: "environment" }, { fps: 10, qrbox: 250 }, onScanSuccess);
+}
+function stopScanner() {
+    if(html5QrcodeScanner) html5QrcodeScanner.stop().then(() => { html5QrcodeScanner.clear(); html5QrcodeScanner = null; });
+}
+async function onScanSuccess(decodedText) {
+    stopScanner();
+    showModal('loading');
+    document.getElementById('barcode-input').value = decodedText;
+    
+    try {
+        const res = await fetch('/api/barcode', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ code: decodedText })
+        });
+        const data = await res.json();
+        showResult(data);
+    } catch(e) { showModal('error'); }
+}
+async function manualSearch() {
+    const code = document.getElementById('barcode-input').value;
+    onScanSuccess(code);
+}
+const fileInput = document.getElementById('file-input');
+fileInput.addEventListener('change', async (e) => {
+    const file = e.target.files[0];
+    if(!file) return;
+    const reader = new FileReader();
+    reader.onload = async (ev) => {
+        showModal('loading');
+        try {
+            const res = await fetch('/api/photo', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ image: ev.target.result })
+            });
+            const data = await res.json();
+            data.found = true; data.name = "Фото"; 
+            showResult(data);
+        } catch(e) { showModal('error'); }
+    }
+    reader.readAsDataURL(file);
+});
+
+// МОДАЛКА
+function showModal(type) {
+    document.getElementById('result-modal').style.display = 'flex';
+    const badge = document.getElementById('res-badge');
+    const title = document.getElementById('res-title');
+    const text = document.getElementById('res-reason');
+    
+    if(type === 'loading') {
+        title.innerText = "Анализ...";
+        text.innerText = "Смотрим базу и состав...";
+        badge.style.display = 'none';
+    } else if (type === 'error') {
+        title.innerText = "Ошибка";
+        text.innerText = "Не удалось проверить.";
+    }
+}
+function showResult(data) {
+    document.getElementById('result-modal').style.display = 'flex';
+    const badge = document.getElementById('res-badge');
+    badge.style.display = 'inline-block';
+    
+    if(!data.found) {
+        badge.className = 'badge mushbooh'; badge.innerText = 'НЕ НАЙДЕНО';
+        document.getElementById('res-title').innerText = "Нет в базе";
+        document.getElementById('res-reason').innerText = "Сфотографируйте состав";
+        return;
+    }
+
+    if(data.status === 'HALAL') {
+        badge.className = 'badge halal'; badge.innerText = '✅ ХАЛЯЛЬ';
+    } else if (data.status === 'HARAM') {
+        badge.className = 'badge haram'; badge.innerText = '⛔ ХАРАМ';
+    } else {
+        badge.className = 'badge mushbooh'; badge.innerText = '⚠️ СОМНИТЕЛЬНО';
+    }
+    document.getElementById('res-title').innerText = data.name;
+    document.getElementById('res-reason').innerText = data.reason;
+    
+    // Список ингредиентов
+    const list = document.getElementById('res-list');
+    list.innerHTML = '';
+    if(data.ingredients_detected) {
+        data.ingredients_detected.forEach(i => {
+            const li = document.createElement('li'); li.innerText = i; li.style.color = 'red';
+            list.appendChild(li);
+        });
+    }
+}
+function closeModal() {
+    document.getElementById('result-modal').style.display = 'none';
+    if(document.getElementById('tab-scan').classList.contains('active')) startScanner();
 }
