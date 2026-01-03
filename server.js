@@ -13,7 +13,7 @@ app.use(express.json({ limit: '50mb' }));
 app.use(cors());
 app.use(express.static('public'));
 
-// --- 1. БАЗА ДАННЫХ ---
+// 1. БАЗА ДАННЫХ
 mongoose.connect(process.env.MONGO_URI)
     .then(() => console.log('✅ MongoDB Connected'))
     .catch(err => console.error('❌ MongoDB Error:', err));
@@ -23,18 +23,19 @@ const UserSchema = new mongoose.Schema({
     password: { type: String, required: true },
     isPremium: { type: Boolean, default: false },
     scansToday: { type: Number, default: 0 },
-    lastLogin: { type: String, default: new Date().toLocaleDateString() }
+    lastLogin: { type: String, default: new Date().toLocaleDateString() },
+    joinedAt: { type: Date, default: Date.now }
 });
 const User = mongoose.model('User', UserSchema);
 
-// --- 2. AI НАСТРОЙКИ ---
-const apiKeys = [process.env.KEY1, process.env.KEY2, process.env.KEY3, process.env.KEY4, process.env.KEY5, process.env.KEY6].filter(k => k);
+// 2. AI МОЗГИ
+const apiKeys = [process.env.KEY1, process.env.KEY2, process.env.KEY3].filter(k => k);
 function getClient() { return new GoogleGenerativeAI(apiKeys[Math.floor(Math.random() * apiKeys.length)]); }
 
 const ANALYZE_PROMPT = `Ты Технолог Халяль. Ищи ХАРАМ: Свинина, Е120, Кармин, Спирт, Желатин (не халяль). JSON ответ: { "status": "HALAL"|"HARAM"|"MUSHBOOH", "reason": "...", "ingredients_detected": [...] }`;
 const IMAM_PROMPT = `Ты Муфтий. Отвечай кратко, мудро, по Корану и Сунне. На таджикском пиши кириллицей.`;
 
-// --- 3. ЗАЩИТА И ЛИМИТЫ ---
+// 3. ЗАЩИТА И ЛИМИТЫ
 const auth = async (req, res, next) => {
     try {
         const token = req.header('Authorization');
@@ -56,7 +57,7 @@ const checkLimit = async (req, res, next) => {
     req.user.scansToday += 1; await req.user.save(); next();
 };
 
-// --- 4. API: АВТОРИЗАЦИЯ ---
+// 4. API: АВТОРИЗАЦИЯ
 app.post('/api/register', async (req, res) => {
     try {
         const { username, password } = req.body;
@@ -65,23 +66,22 @@ app.post('/api/register', async (req, res) => {
         await user.save();
         const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET);
         res.json({ token, username, isPremium: false });
-    } catch(e) { res.status(400).json({ error: "Имя пользователя занято" }); }
+    } catch(e) { res.status(400).json({ error: "Имя занято" }); }
 });
 
 app.post('/api/login', async (req, res) => {
     try {
         const { username, password } = req.body;
         const user = await User.findOne({ username });
-        if(!user || !(await bcrypt.compare(password, user.password))) return res.status(400).json({ error: "Неверный логин или пароль" });
+        if(!user || !(await bcrypt.compare(password, user.password))) return res.status(400).json({ error: "Неверно" });
         const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET);
         res.json({ token, username, isPremium: user.isPremium });
     } catch(e) { res.status(500).json({ error: "Ошибка сервера" }); }
 });
 
 app.get('/api/me', auth, (req, res) => res.json({ user: { username: req.user.username, isPremium: req.user.isPremium } }));
-app.post('/api/buy', auth, async (req, res) => { req.user.isPremium = true; await req.user.save(); res.json({ success: true }); });
 
-// --- 5. API: ФУНКЦИИ ---
+// 5. API: ФУНКЦИИ
 app.post('/api/barcode', auth, checkLimit, async (req, res) => {
     try {
         const { code } = req.body;
@@ -101,7 +101,7 @@ app.post('/api/barcode', auth, checkLimit, async (req, res) => {
             return res.json({ found: true, hasIngredients: false, name });
         }
         res.json({ found: false });
-    } catch (e) { res.status(500).json({ error: "Ошибка сервера" }); }
+    } catch (e) { res.status(500).json({ error: "Ошибка" }); }
 });
 
 app.post('/api/photo', auth, checkLimit, async (req, res) => {
@@ -125,29 +125,20 @@ app.post('/api/chat', auth, async (req, res) => {
 app.get('/api/daily', async (req, res) => {
     try {
         const model = getClient().getGenerativeModel({ model: "gemini-flash-latest" });
-        const result = await model.generateContent(`Пришли 1 Аят или Хадис (JSON: arabic, translation, source)`);
+        const result = await model.generateContent(`Пришли 1 Аят или Хадис JSON: {"arabic": "...", "translation": "...", "source": "..."}`);
         res.json(JSON.parse(result.response.text().replace(/```json|```/g, '').trim()));
-    } catch (e) { res.json({ translation: "Аллах с нами.", arabic: "الله معانا", source: "" }); }
+    } catch (e) { res.json({ translation: "Аллах велик", arabic: "الله أكبر" }); }
 });
 
-// --- ADMIN API (СЕКРЕТНОЕ) ---
-
-// Получить всех пользователей
+// 6. АДМИН ПАНЕЛЬ (Скрытая)
 app.get('/api/admin/users', async (req, res) => {
-    // В идеале тут нужна защита паролем, но пока сделаем просто скрытый путь
-    try {
-        const users = await User.find({}, 'username isPremium scansToday lastLogin');
-        res.json(users);
-    } catch(e) { res.status(500).json({error: "Ошибка"}); }
+    const users = await User.find({}, 'username isPremium scansToday lastLogin');
+    res.json(users);
 });
-
-// Включить/Выключить Премиум
-app.post('/api/admin/toggle-premium', async (req, res) => {
-    try {
-        const { userId, status } = req.body;
-        await User.findByIdAndUpdate(userId, { isPremium: status });
-        res.json({ success: true });
-    } catch(e) { res.status(500).json({error: "Ошибка"}); }
+app.post('/api/admin/toggle', async (req, res) => {
+    const { id, status } = req.body;
+    await User.findByIdAndUpdate(id, { isPremium: status });
+    res.json({ success: true });
 });
 
 app.listen(process.env.PORT || 3000, () => console.log('🚀 Server Started'));

@@ -9,7 +9,6 @@
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <link rel="stylesheet" href="style.css">
-    <link rel="manifest" href="manifest.json">
 </head>
 <body>
 
@@ -20,17 +19,15 @@
             <div class="logo-area"><i class="fas fa-kaaba"></i></div>
             <h1>Halal Guide</h1>
             <p>Premium Edition</p>
-            
             <div id="login-form">
-                <div class="inp-grp"><i class="fas fa-user"></i><input type="text" id="l-user" placeholder="Логин"></div>
-                <div class="inp-grp"><i class="fas fa-lock"></i><input type="password" id="l-pass" placeholder="Пароль"></div>
+                <input type="text" id="l-user" placeholder="Логин">
+                <input type="password" id="l-pass" placeholder="Пароль">
                 <button class="btn-main" onclick="login()">ВОЙТИ</button>
                 <div class="link" onclick="toggleAuth()">Нет аккаунта? Регистрация</div>
             </div>
-            
             <div id="reg-form" style="display:none;">
-                <div class="inp-grp"><i class="fas fa-user-plus"></i><input type="text" id="r-user" placeholder="Новый Логин"></div>
-                <div class="inp-grp"><i class="fas fa-key"></i><input type="password" id="r-pass" placeholder="Новый Пароль"></div>
+                <input type="text" id="r-user" placeholder="Придумайте Логин">
+                <input type="password" id="r-pass" placeholder="Придумайте Пароль">
                 <button class="btn-main" onclick="register()">СОЗДАТЬ</button>
                 <div class="link" onclick="toggleAuth()">Есть аккаунт? Вход</div>
             </div>
@@ -44,14 +41,12 @@
                 <div><h1>Ас-саляму алейкум</h1><h2 id="u-name">...</h2></div>
                 <div class="badge free" id="u-badge" onclick="openPaywall()">FREE</div>
             </div>
-
             <div class="daily-card">
                 <div class="card-head"><i class="fas fa-star"></i> Ильм дня</div>
                 <div id="d-arabic" class="arabic">...</div>
                 <div id="d-trans" class="trans">Загрузка...</div>
                 <div id="d-source" class="source">...</div>
             </div>
-
             <div class="menu-grid">
                 <div class="menu-btn" onclick="switchTab('scan')"><i class="fas fa-barcode green"></i><span>Сканер</span></div>
                 <div class="menu-btn" onclick="switchTab('chat')"><i class="fas fa-mosque gold"></i><span>Имам</span></div>
@@ -65,12 +60,8 @@
             <div class="scan-ui">
                 <div class="reader-wrap"><div id="reader"></div><div class="overlay"><div class="laser"></div></div></div>
                 <p>Наведите камеру на штрихкод</p>
-                
                 <div class="actions">
-                    <div class="input-row">
-                        <input type="number" id="barcode-in" placeholder="Или введите цифры">
-                        <button onclick="manualSearch()"><i class="fas fa-arrow-right"></i></button>
-                    </div>
+                    <div class="input-row"><input type="number" id="barcode-in" placeholder="Цифры штрихкода..."><button onclick="manualSearch()"><i class="fas fa-arrow-right"></i></button></div>
                     <div class="or">ИЛИ</div>
                     <button class="btn-photo" onclick="document.getElementById('file').click()"><i class="fas fa-camera"></i> Фото Состава</button>
                     <input type="file" id="file" hidden accept="image/*" capture="environment">
@@ -79,21 +70,13 @@
         </div>
 
         <div id="tab-chat" class="screen">
-            <div class="chat-head">
-                <div class="status"></div>
-                <div><h3>Муфтий ИИ</h3><p>Онлайн</p></div>
-            </div>
+            <div class="chat-head"><div class="status"></div><h3>Муфтий ИИ</h3></div>
             <div id="chat-box" class="chat-body"><div class="msg ai">Ас-саляму алейкум!</div></div>
-            <div class="chat-input">
-                <input type="text" id="msg-in" placeholder="Вопрос...">
-                <button onclick="sendMsg()"><i class="fas fa-paper-plane"></i></button>
-            </div>
+            <div class="chat-input"><input type="text" id="msg-in" placeholder="Вопрос..."><button onclick="sendMsg()"><i class="fas fa-paper-plane"></i></button></div>
         </div>
 
-        <div id="tab-map" class="screen">
-            <div class="map-head">
-                <i class="fas fa-compass" id="q-icon"></i> <span id="q-text">Кибла: ...</span>
-            </div>
+        <div id="tab-map" class="screen map-screen">
+            <div class="map-head"><i class="fas fa-compass" id="q-icon"></i> <span id="q-text">Кибла: ...</span></div>
             <div id="map"></div>
             <button class="btn-float" onclick="locateUser()"><i class="fas fa-location-arrow"></i></button>
         </div>
@@ -117,32 +100,22 @@
     </div>
 
     <div id="pay-modal" class="modal">
-    <div class="modal-card pay-card">
-        <i class="fas fa-crown big-icon"></i>
-        <h2>Стать VIP</h2>
-        <p>Получите безлимит и поддержку Имама.</p>
-        
-        <div class="payment-info">
-            <p>Цена: <strong>15 TJS / месяц</strong></p>
-            <div class="card-box">
-                <span>Алиф / Душанбе Сити:</span>
-                <b id="card-number">9876 5432 1098 7654</b>
-                <button class="btn-copy" onclick="copyCard()">Копировать</button>
+        <div class="modal-card pay-card">
+            <i class="fas fa-crown big-icon"></i>
+            <h2>Стать VIP</h2>
+            <div class="payment-info">
+                <p>Цена: <strong>15 TJS / месяц</strong></p>
+                <div class="card-box">
+                    <span>Корт Милли:</span>
+                    <b id="card-num">9876 5432 1098 7654</b>
+                    <button class="btn-copy" onclick="copyCard()">Копировать</button>
+                </div>
+                <p class="instr">1. Оплатите 15c.<br>2. Скиньте скрин админу.</p>
             </div>
-            <p class="instruction">
-                1. Переведите 15 сомони.<br>
-                2. Сделайте скриншот чека.<br>
-                3. Отправьте скриншот Администратору.
-            </p>
+            <button class="btn-tg" onclick="openTG()"><i class="fab fa-telegram"></i> Отправить Чек</button>
+            <button class="btn-sec" onclick="closeModal('pay-modal')">Отмена</button>
         </div>
-
-        <button class="btn-tg" onclick="openTelegram()">
-            <i class="fab fa-telegram"></i> Отправить чек Админу
-        </button>
-        
-        <button class="btn-sec" onclick="closeModal('pay-modal')">Закрыть</button>
     </div>
-</div>
 
     <script src="script.js"></script>
 </body>

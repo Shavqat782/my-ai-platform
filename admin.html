@@ -1,71 +1,25 @@
 <!DOCTYPE html>
-<html lang="ru">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Панель Абдуллы</title>
-    <style>
-        body { font-family: sans-serif; padding: 20px; background: #f4f4f4; }
-        h1 { color: #0F5132; }
-        .user-card { 
-            background: white; padding: 15px; margin-bottom: 10px; border-radius: 10px; 
-            display: flex; justify-content: space-between; align-items: center;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-        }
-        .info b { font-size: 18px; display: block; }
-        .info span { font-size: 12px; color: #666; }
-        button { padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; }
-        .btn-give { background: #27ae60; color: white; }
-        .btn-remove { background: #c0392b; color: white; }
-        .vip-badge { background: gold; padding: 2px 8px; border-radius: 4px; font-size: 12px; font-weight: bold; }
-    </style>
-</head>
-<body>
-    <h1>👑 Управление Пользователями</h1>
-    <button onclick="loadUsers()" style="background:#333; color:white; margin-bottom:20px;">Обновить список</button>
-    <div id="users-list">Загрузка...</div>
-
+<html>
+<head><title>Admin</title></head>
+<body style="font-family:sans-serif; padding:20px;">
+    <h1>Админ Панель</h1>
+    <button onclick="load()" style="padding:10px;">Обновить</button>
+    <div id="list" style="margin-top:20px;"></div>
     <script>
-        // Замени на адрес своего сайта на Render, если запускаешь локально
-        // const API_BASE = "https://твое-приложение.onrender.com"; 
-        const API_BASE = ""; // Оставь пустым, если файл лежит там же где сервер
-
-        async function loadUsers() {
-            const res = await fetch(API_BASE + '/api/admin/users');
-            const users = await res.json();
-            
-            const container = document.getElementById('users-list');
-            container.innerHTML = '';
-            
-            users.forEach(u => {
-                const div = document.createElement('div');
-                div.className = 'user-card';
-                div.innerHTML = `
-                    <div class="info">
-                        <b>${u.username} ${u.isPremium ? '<span class="vip-badge">VIP</span>' : ''}</b>
-                        <span>Сканов сегодня: ${u.scansToday} | Вход: ${u.lastLogin}</span>
-                    </div>
-                    <button class="${u.isPremium ? 'btn-remove' : 'btn-give'}" 
-                            onclick="togglePremium('${u._id}', ${!u.isPremium})">
-                        ${u.isPremium ? 'Снять VIP' : 'ДАТЬ VIP'}
-                    </button>
-                `;
-                container.appendChild(div);
-            });
+        // const API = "https://abdulla-ai-pro.onrender.com"; // Включи на проде
+        const API = ""; 
+        async function load() {
+            const r = await fetch(API+'/api/admin/users');
+            const d = await r.json();
+            document.getElementById('list').innerHTML = d.map(u => `
+                <div style="background:#eee; padding:10px; margin:5px; border-radius:5px; display:flex; justify-content:space-between;">
+                    <b>${u.username} (${u.isPremium?'VIP':'FREE'})</b>
+                    <button onclick="toggle('${u._id}', ${!u.isPremium})">${u.isPremium?'Снять':'ДАТЬ'} VIP</button>
+                </div>
+            `).join('');
         }
-
-        async function togglePremium(id, status) {
-            if(!confirm(status ? "Сделать VIP?" : "Снять VIP?")) return;
-            
-            await fetch(API_BASE + '/api/admin/toggle-premium', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ userId: id, status: status })
-            });
-            loadUsers(); // Обновить список
-        }
-
-        loadUsers();
+        async function toggle(id, st) { await fetch(API+'/api/admin/toggle', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id,status:st})}); load(); }
+        load();
     </script>
 </body>
 </html>
