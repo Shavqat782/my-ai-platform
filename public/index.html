@@ -1,166 +1,305 @@
 <!DOCTYPE html>
-<html lang="ru">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Halal Guide Enterprise</title>
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
-    <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Halal Scanner - Проверка Халяль Продуктов</title>
     <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&family=Amiri:wght@400;700&display=swap" rel="stylesheet">
 </head>
 <body>
-
-    <div id="auth-screen">
-        <div class="auth-container">
-            <div class="auth-logo">
-                <i class="fas fa-kaaba"></i>
-                <h1>Halal Guide</h1>
-                <p>Ваш духовный помощник</p>
-            </div>
-
-            <div id="login-form" class="auth-form">
-                <div class="input-field">
-                    <i class="fas fa-user"></i>
-                    <input type="text" id="login-username" placeholder="Имя пользователя">
+    <div class="container">
+        <!-- Header with Islamic Design -->
+        <header class="header">
+            <div class="logo-section">
+                <div class="logo">
+                    <i class="fas fa-mosque"></i>
+                    <h1>Halal Scanner</h1>
                 </div>
-                <div class="input-field">
-                    <i class="fas fa-lock"></i>
-                    <input type="password" id="login-password" placeholder="Пароль">
-                </div>
-                <button class="btn-primary" onclick="login()">ВОЙТИ</button>
-                <p class="switch-auth">Нет аккаунта? <span onclick="toggleAuth('register')">Создать</span></p>
-            </div>
-
-            <div id="register-form" class="auth-form" style="display:none;">
-                <div class="input-field">
-                    <i class="fas fa-user-plus"></i>
-                    <input type="text" id="reg-username" placeholder="Придумайте имя">
-                </div>
-                <div class="input-field">
-                    <i class="fas fa-key"></i>
-                    <input type="password" id="reg-password" placeholder="Придумайте пароль">
-                </div>
-                <button class="btn-primary" onclick="register()">ЗАРЕГИСТРИРОВАТЬСЯ</button>
-                <p class="switch-auth">Есть аккаунт? <span onclick="toggleAuth('login')">Войти</span></p>
-            </div>
-        </div>
-    </div>
-
-    <div id="app-container" style="display:none;">
-        
-        <div id="preloader"><div class="spinner"></div></div>
-
-        <div id="tab-home" class="screen active">
-            <div class="header-premium">
-                <div>
-                    <h1 class="welcome-text">Ас-саляму алейкум,</h1>
-                    <h2 id="user-name-display">Мусульманин</h2>
-                </div>
-                <div id="status-badge" class="badge-pill free" onclick="showPaywall()">FREE</div>
-            </div>
-
-            <div class="daily-card-container">
-                <div class="daily-card">
-                    <div class="card-label"><i class="fas fa-star"></i> Ильм дня</div>
-                    <div id="daily-arabic" class="arabic-text">...</div>
-                    <div id="daily-translation" class="trans-text">Загрузка напоминания...</div>
-                    <div id="daily-source" class="source-text">...</div>
+                <div class="arabic-title">
+                    <p>مُسْتَكْشِف الحَلاَل</p>
                 </div>
             </div>
-
-            <h3 class="section-title">Сервисы</h3>
-            <div class="grid-menu">
-                <div class="menu-item" onclick="switchTab('scan')">
-                    <div class="icon-box green"><i class="fas fa-barcode"></i></div><span>Сканер</span>
-                </div>
-                <div class="menu-item" onclick="switchTab('chat')">
-                    <div class="icon-box gold"><i class="fas fa-mosque"></i></div><span>Имам</span>
-                </div>
-                <div class="menu-item" onclick="switchTab('map')">
-                    <div class="icon-box blue"><i class="fas fa-map-marker-alt"></i></div><span>Мечети</span>
-                </div>
-                <div class="menu-item" onclick="logout()">
-                    <div class="icon-box red"><i class="fas fa-sign-out-alt"></i></div><span>Выйти</span>
-                </div>
+            <div class="header-verse">
+                <p class="arabic-verse">زمن نَتِقَّ أَلْفُكُمْ إِلَّهِ غَرَيْءًا مِنْ رَبِّدٌهُ مِنْ حَيْثاً لَا يُعْتَشَبُ</p>
+                <p class="translation">"Тому, кто боится Аллаха, Он создает выход (из положения). И обеспечивает его уделом, откуда тот и не ждет."</p>
             </div>
-        </div>
+        </header>
 
-        <div id="tab-scan" class="screen">
-            <div class="top-nav"><h2>Сканер Продуктов</h2></div>
-            <div class="scanner-ui">
-                <div class="camera-frame">
-                    <div id="reader"></div>
-                    <div class="scan-overlay"><div class="laser"></div></div>
-                </div>
-                <p class="scan-instruction">Наведите камеру на штрихкод</p>
-                
-                <div class="scan-actions">
-                    <div class="input-wrapper">
-                        <input type="number" id="barcode-input" placeholder="Введите код вручную...">
-                        <button onclick="manualSearch()" class="btn-go"><i class="fas fa-arrow-right"></i></button>
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Authentication Section -->
+            <div class="auth-section" id="authSection">
+                <div class="auth-box">
+                    <h2><i class="fas fa-user-circle"></i> Вход в систему</h2>
+                    <div class="auth-tabs">
+                        <button class="auth-tab active" onclick="switchAuthTab('login')">Вход</button>
+                        <button class="auth-tab" onclick="switchAuthTab('register')">Регистрация</button>
                     </div>
-                    <div class="divider"><span>ИЛИ</span></div>
-                    <button class="btn-photo" onclick="document.getElementById('file-input').click()"><i class="fas fa-camera"></i> Сфотографировать Состав</button>
-                    <input type="file" id="file-input" accept="image/*" capture="environment" hidden>
+                    <div id="loginForm" class="auth-form">
+                        <input type="text" id="loginUsername" placeholder="Имя пользователя">
+                        <input type="password" id="loginPassword" placeholder="Пароль">
+                        <button onclick="login()" class="btn-primary">
+                            <i class="fas fa-sign-in-alt"></i> Войти
+                        </button>
+                    </div>
+                    <div id="registerForm" class="auth-form" style="display: none;">
+                        <input type="text" id="registerUsername" placeholder="Имя пользователя">
+                        <input type="password" id="registerPassword" placeholder="Пароль">
+                        <input type="password" id="confirmPassword" placeholder="Подтвердите пароль">
+                        <button onclick="register()" class="btn-primary">
+                            <i class="fas fa-user-plus"></i> Зарегистрироваться
+                        </button>
+                    </div>
                 </div>
             </div>
-        </div>
 
-        <div id="tab-chat" class="screen">
-            <div class="top-nav">
-                <div class="status-dot"></div>
-                <h2>Муфтий ИИ</h2>
-            </div>
-            <div id="chat-history" class="chat-history">
-                <div class="msg ai">Ас-саляму алейкум! Я готов ответить на ваши вопросы.</div>
-            </div>
-            <div class="chat-input-area">
-                <input type="text" id="chat-input" placeholder="Ваш вопрос...">
-                <button onclick="sendMessage()"><i class="fas fa-paper-plane"></i></button>
-            </div>
-        </div>
+            <!-- Main Scanner Section (Initially hidden) -->
+            <div class="scanner-section" id="scannerSection" style="display: none;">
+                <!-- Tabs Navigation -->
+                <div class="tabs">
+                    <button class="tab active" onclick="switchTab('scanner')">
+                        <i class="fas fa-barcode"></i> Сканер
+                    </button>
+                    <button class="tab" onclick="switchTab('chat')">
+                        <i class="fas fa-comments"></i> Спроси Имама
+                    </button>
+                    <button class="tab" onclick="switchTab('mosque')">
+                        <i class="fas fa-mosque"></i> Мечети & Кибла
+                    </button>
+                    <button class="tab" onclick="switchTab('history')">
+                        <i class="fas fa-history"></i> История
+                    </button>
+                </div>
 
-        <div id="tab-map" class="screen">
-            <div id="map"></div>
-            <button class="btn-locate" onclick="locateMe()"><i class="fas fa-location-arrow"></i> Найти меня</button>
-        </div>
+                <!-- Scanner Tab -->
+                <div id="scannerTab" class="tab-content active">
+                    <div class="scanner-box">
+                        <h2><i class="fas fa-camera"></i> Сканирование продукта</h2>
+                        
+                        <!-- Barcode Scanner -->
+                        <div class="scanner-option">
+                            <h3><i class="fas fa-barcode"></i> Сканировать штрих-код</h3>
+                            <div class="scanner-input">
+                                <input type="text" id="barcodeInput" placeholder="Введите штрих-код или сканируйте">
+                                <button onclick="scanBarcode()" class="btn-scan">
+                                    <i class="fas fa-search"></i> Проверить
+                                </button>
+                            </div>
+                            <div class="camera-section">
+                                <h4>Используйте камеру для сканирования</h4>
+                                <div class="camera-preview" id="cameraPreview">
+                                    <video id="scannerVideo" style="display: none;"></video>
+                                    <canvas id="scannerCanvas" style="display: none;"></canvas>
+                                    <div class="camera-placeholder">
+                                        <i class="fas fa-camera"></i>
+                                        <p>Камера для сканирования штрих-кодов</p>
+                                    </div>
+                                </div>
+                                <div class="camera-controls">
+                                    <button onclick="startBarcodeScanner()" class="btn-camera">
+                                        <i class="fas fa-play"></i> Запустить сканер
+                                    </button>
+                                    <button onclick="stopBarcodeScanner()" class="btn-camera stop">
+                                        <i class="fas fa-stop"></i> Остановить
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
 
-        <div class="bottom-nav">
-            <div class="nav-btn active" onclick="switchTab('home', this)"><i class="fas fa-home"></i></div>
-            <div class="nav-btn" onclick="switchTab('map', this)"><i class="fas fa-map"></i></div>
-            <div class="nav-btn-center" onclick="switchTab('scan', this)"><div class="scan-circle"><i class="fas fa-qrcode"></i></div></div>
-            <div class="nav-btn" onclick="switchTab('chat', this)"><i class="fas fa-comment-dots"></i></div>
-        </div>
+                        <!-- Image Scanner -->
+                        <div class="scanner-option">
+                            <h3><i class="fas fa-image"></i> Сфотографировать состав</h3>
+                            <div class="image-upload">
+                                <div class="upload-area" id="uploadArea">
+                                    <i class="fas fa-cloud-upload-alt"></i>
+                                    <p>Перетащите фото состава или нажмите для загрузки</p>
+                                    <input type="file" id="imageUpload" accept="image/*" capture="environment" hidden>
+                                </div>
+                                <button onclick="document.getElementById('imageUpload').click()" class="btn-upload">
+                                    <i class="fas fa-upload"></i> Загрузить фото
+                                </button>
+                                <button onclick="captureImage()" class="btn-upload">
+                                    <i class="fas fa-camera"></i> Сделать фото
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Manual Input -->
+                        <div class="scanner-option">
+                            <h3><i class="fas fa-keyboard"></i> Ввести состав вручную</h3>
+                            <textarea id="ingredientsInput" placeholder="Введите состав продукта..."></textarea>
+                            <button onclick="checkIngredients()" class="btn-primary">
+                                <i class="fas fa-check-circle"></i> Проверить состав
+                            </button>
+                        </div>
+
+                        <!-- Results Display -->
+                        <div class="results-section" id="resultsSection">
+                            <div class="result-card" id="resultCard">
+                                <div class="result-header">
+                                    <h3><i class="fas fa-clipboard-check"></i> Результат проверки</h3>
+                                    <div class="status-indicator" id="statusIndicator">
+                                        <span class="status-dot"></span>
+                                        <span class="status-text">Ожидание...</span>
+                                    </div>
+                                </div>
+                                <div class="result-body">
+                                    <div class="product-info" id="productInfo">
+                                        <p>Отсканируйте продукт чтобы увидеть результат</p>
+                                    </div>
+                                    <div class="halal-status" id="halalStatus">
+                                        <div class="status-unknown">
+                                            <i class="fas fa-question-circle"></i>
+                                            <p>Статус не определен</p>
+                                        </div>
+                                    </div>
+                                    <div class="ingredients-list" id="ingredientsList">
+                                        <h4>Состав:</h4>
+                                        <p>Информация появится после сканирования</p>
+                                    </div>
+                                    <div class="explanation" id="explanation">
+                                        <h4>Объяснение:</h4>
+                                        <p>Здесь будет объяснение почему продукт халяль или харам</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Chat with Imam Tab -->
+                <div id="chatTab" class="tab-content">
+                    <div class="chat-box">
+                        <h2><i class="fas fa-comments"></i> Спроси Имама</h2>
+                        <div class="chat-container">
+                            <div class="chat-messages" id="chatMessages">
+                                <div class="message imam">
+                                    <div class="message-header">
+                                        <i class="fas fa-user-tie"></i>
+                                        <strong>Имам:</strong>
+                                    </div>
+                                    <div class="message-content">
+                                        Ассаламу алейкум! Я здесь чтобы ответить на ваши вопросы об исламе, халяль питании и религиозных практиках. Задайте ваш вопрос.
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="chat-input">
+                                <textarea id="questionInput" placeholder="Задайте ваш вопрос об исламе..."></textarea>
+                                <button onclick="askImam()" class="btn-send">
+                                    <i class="fas fa-paper-plane"></i> Отправить
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Mosque & Qibla Tab -->
+                <div id="mosqueTab" class="tab-content">
+                    <div class="mosque-box">
+                        <h2><i class="fas fa-mosque"></i> Мечети & Направление Киблы</h2>
+                        
+                        <div class="location-section">
+                            <h3><i class="fas fa-map-marker-alt"></i> Ваше местоположение</h3>
+                            <div class="location-info" id="locationInfo">
+                                <p><i class="fas fa-sync-alt fa-spin"></i> Определение местоположения...</p>
+                            </div>
+                            <button onclick="getLocation()" class="btn-location">
+                                <i class="fas fa-location-arrow"></i> Обновить местоположение
+                            </button>
+                        </div>
+
+                        <div class="qibla-section">
+                            <h3><i class="fas fa-compass"></i> Направление Киблы</h3>
+                            <div class="qibla-compass" id="qiblaCompass">
+                                <div class="compass-circle">
+                                    <div class="compass-arrow" id="compassArrow">
+                                        <i class="fas fa-long-arrow-alt-up"></i>
+                                    </div>
+                                    <div class="compass-degree" id="compassDegree">0°</div>
+                                    <div class="compass-direction">Кибла</div>
+                                </div>
+                            </div>
+                            <div class="qibla-info" id="qiblaInfo">
+                                <p>Направление к Каабе в Мекке появится после определения местоположения</p>
+                            </div>
+                        </div>
+
+                        <div class="mosques-section">
+                            <h3><i class="fas fa-map-marked-alt"></i> Ближайшие мечети</h3>
+                            <div class="mosques-list" id="mosquesList">
+                                <div class="loading-mosques">
+                                    <i class="fas fa-spinner fa-spin"></i>
+                                    <p>Поиск ближайших мечетей...</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- History Tab -->
+                <div id="historyTab" class="tab-content">
+                    <div class="history-box">
+                        <h2><i class="fas fa-history"></i> История сканирований</h2>
+                        <div class="history-controls">
+                            <button onclick="clearHistory()" class="btn-clear">
+                                <i class="fas fa-trash"></i> Очистить историю
+                            </button>
+                        </div>
+                        <div class="history-list" id="historyList">
+                            <div class="empty-history">
+                                <i class="fas fa-history"></i>
+                                <p>История сканирований пуста</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <!-- Footer -->
+        <footer class="footer">
+            <div class="footer-content">
+                <div class="footer-section">
+                    <h4>Сервисы</h4>
+                    <ul>
+                        <li><i class="fas fa-barcode"></i> Сканер продуктов</li>
+                        <li><i class="fas fa-robot"></i> AI анализ состава</li>
+                        <li><i class="fas fa-comments"></i> Консультация имама</li>
+                        <li><i class="fas fa-mosque"></i> Поиск мечетей</li>
+                    </ul>
+                </div>
+                <div class="footer-section">
+                    <h4>Статус системы</h4>
+                    <div class="system-status">
+                        <div class="status-item">
+                            <span class="status-dot online"></span>
+                            <span>Gemini AI: Работает</span>
+                        </div>
+                        <div class="status-item">
+                            <span class="status-dot online"></span>
+                            <span>База данных: Активна</span>
+                        </div>
+                        <div class="status-item">
+                            <span class="status-dot online"></span>
+                            <span>Сканер: Готов</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="footer-section">
+                    <p class="copyright">
+                        <i class="fas fa-heart"></i> Halal Scanner для мусульманской уммы
+                        <br>
+                        Версия 1.0 | Powered by Google Gemini
+                    </p>
+                </div>
+            </div>
+        </footer>
     </div>
 
-    <div id="result-modal" class="modal">
-        <div class="modal-content">
-            <h3 id="res-title">...</h3>
-            <div id="res-badge" class="badge">...</div>
-            <p id="res-reason" class="reason-text">...</p>
-            <div class="details-box"><ul id="res-list"></ul></div>
-            <button class="btn-full" onclick="closeModal('result-modal')">Закрыть</button>
-        </div>
-    </div>
-
-    <div id="paywall-modal" class="modal">
-        <div class="modal-content paywall-box">
-            <div class="crown-anim"><i class="fas fa-crown"></i></div>
-            <h2>Premium Доступ</h2>
-            <p class="paywall-text">Вы использовали бесплатные проверки на сегодня.</p>
-            <ul class="features-list">
-                <li>🚀 Безлимитные сканирования</li>
-                <li>📸 Распознавание любого фото</li>
-                <li>🕋 Приоритетный чат с Имамом</li>
-            </ul>
-            <div class="price-tag">15.00 TJS / месяц</div>
-            <button class="btn-buy" onclick="buyPremium()">ОПЛАТИТЬ (Алиф/Душанбе Сити)</button>
-            <button class="btn-cancel" onclick="closeModal('paywall-modal')">Отмена</button>
-        </div>
-    </div>
-
+    <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/quagga@0.12.1/dist/quagga.min.js"></script>
     <script src="script.js"></script>
 </body>
 </html>
