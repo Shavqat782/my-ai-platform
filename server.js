@@ -1,55 +1,19 @@
 require('dotenv').config();
 const express = require('express');
-const mongoose = require('mongoose');
 const axios = require('axios');
 const cors = require('cors');
 const path = require('path');
-const jwt = require('jsonwebtoken');
-const bcrypt = require('bcryptjs');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
 // Middleware
 app.use(cors());
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 app.use(express.static('public'));
 
-// MongoDB Connection
-mongoose.connect(process.env.MONGO_URI)
-  .then(() => console.log('MongoDB connected'))
-  .catch(err => console.log('MongoDB connection error:', err));
-
-// User Schema
-const userSchema = new mongoose.Schema({
-  username: { type: String, required: true, unique: true },
-  password: { type: String, required: true },
-  createdAt: { type: Date, default: Date.now }
-});
-
-const User = mongoose.model('User', userSchema);
-
-// Product Schema
-const productSchema = new mongoose.Schema({
-  barcode: { type: String, required: true, unique: true },
-  name: { type: String, required: true },
-  brand: String,
-  category: String,
-  halalStatus: { 
-    type: String, 
-    enum: ['halal', 'haram', 'mashbooh', 'unknown'], 
-    required: true 
-  },
-  ingredients: [String],
-  description: String,
-  verifiedBy: String,
-  lastUpdated: { type: Date, default: Date.now }
-});
-
-const Product = mongoose.model('Product', productSchema);
-
-// Gemini API Keys Rotation
+// Gemini API Keys
 const geminiKeys = [
   process.env.KEY1,
   process.env.KEY2,
@@ -57,11 +21,14 @@ const geminiKeys = [
   process.env.KEY4,
   process.env.KEY5,
   process.env.KEY6
-].filter(key => key && key.length > 10);
+].filter(key => key && key.length > 5);
 
 let currentKeyIndex = 0;
 
 function getNextGeminiKey() {
+  if (geminiKeys.length === 0) {
+    throw new Error('No Gemini API keys configured');
+  }
   const key = geminiKeys[currentKeyIndex];
   currentKeyIndex = (currentKeyIndex + 1) % geminiKeys.length;
   return key;
@@ -79,18 +46,25 @@ async function analyzeWithGemini(prompt) {
             parts: [{
               text: prompt
             }]
-          }]
+          }],
+          generationConfig: {
+            temperature: 0.1,
+            maxOutputTokens: 2000
+          }
         },
         {
           headers: {
             'Content-Type': 'application/json'
-          }
+          },
+          timeout: 30000
         }
       );
       
-      return response.data.candidates[0].content.parts[0].text;
+      if (response.data.candidates && response.data.candidates[0]) {
+        return response.data.candidates[0].content.parts[0].text;
+      }
     } catch (error) {
-      console.log(`Key ${currentKeyIndex} failed, trying next...`);
+      console.log(`Key ${currentKeyIndex} failed: ${error.message}`);
       continue;
     }
   }
@@ -98,135 +72,118 @@ async function analyzeWithGemini(prompt) {
 }
 
 // Routes
-// Auth Routes
-app.post('/api/register', async (req, res) => {
-  try {
-    const { username, password } = req.body;
-    const hashedPassword = await bcrypt.hash(password, 10);
-    const user = new User({ username, password: hashedPassword });
-    await user.save();
-    res.json({ success: true, message: 'User registered successfully' });
-  } catch (error) {
-    res.status(400).json({ success: false, message: error.message });
-  }
+app.get('/api/health', (req, res) => {
+  res.json({ 
+    status: 'ok', 
+    keys: geminiKeys.length,
+    message: 'Halal Scanner API is running'
+  });
 });
 
-app.post('/api/login', async (req, res) => {
-  try {
-    const { username, password } = req.body;
-    const user = await User.findOne({ username });
-    
-    if (!user || !await bcrypt.compare(password, user.password)) {
-      return res.status(401).json({ success: false, message: 'Invalid credentials' });
-    }
-    
-    const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET, { expiresIn: '7d' });
-    res.json({ success: true, token });
-  } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
-  }
-});
-
-// Product Routes
+// Check barcode
 app.post('/api/check-barcode', async (req, res) => {
   try {
     const { barcode } = req.body;
     
-    // Check in database first
-    const product = await Product.findOne({ barcode });
-    if (product) {
-      return res.json({
-        success: true,
-        found: true,
-        product,
-        source: 'database'
-      });
+    if (!barcode) {
+      return res.status(400).json({ success: false, message: 'Barcode is required' });
     }
     
-    // If not found, use Gemini to analyze
     const prompt = `Analyze product with barcode ${barcode}. 
     Determine if it's halal or haram for Muslims.
     Consider ingredients, manufacturing process, and Islamic dietary laws.
-    If you don't know, say "unknown".
     
     Format response as JSON:
     {
-      "name": "product name",
+      "name": "product name or 'Unknown Product'",
       "halalStatus": "halal/haram/mashbooh/unknown",
-      "ingredients": ["ing1", "ing2"],
+      "ingredients": ["list if known"],
       "description": "detailed explanation",
       "verification": "AI analysis"
     }`;
     
     const geminiResponse = await analyzeWithGemini(prompt);
-    const productInfo = JSON.parse(geminiResponse);
     
-    // Save to database
-    const newProduct = new Product({
-      barcode,
-      ...productInfo
-    });
-    await newProduct.save();
-    
-    res.json({
-      success: true,
-      found: false,
-      product: newProduct,
-      source: 'gemini'
-    });
+    try {
+      const productInfo = JSON.parse(geminiResponse);
+      res.json({
+        success: true,
+        product: {
+          barcode,
+          ...productInfo
+        }
+      });
+    } catch (e) {
+      // If not valid JSON, return as description
+      res.json({
+        success: true,
+        product: {
+          barcode,
+          name: 'Product Analysis',
+          halalStatus: 'unknown',
+          description: geminiResponse,
+          verification: 'AI analysis'
+        }
+      });
+    }
   } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
+    console.error('Barcode check error:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: error.message || 'Internal server error' 
+    });
   }
 });
 
+// Check ingredients from text
 app.post('/api/check-ingredients', async (req, res) => {
   try {
-    const { imageBase64, ingredientsText } = req.body;
+    const { ingredientsText } = req.body;
     
-    let prompt = '';
-    if (imageBase64) {
-      prompt = `Analyze this product image and determine if it's halal or haram for Muslims.
-      Look at ingredients list, certifications, and packaging information.
-      If you can't determine, say "mashbooh" (doubtful).
-      
-      Format response as JSON:
-      {
-        "name": "product name if visible",
-        "halalStatus": "halal/haram/mashbooh/unknown",
-        "ingredients": ["list of ingredients"],
-        "description": "detailed explanation",
-        "verification": "AI image analysis"
-      }`;
-    } else if (ingredientsText) {
-      prompt = `Analyze these ingredients and determine if product is halal or haram for Muslims:
-      "${ingredientsText}"
-      
-      Pay special attention to:
-      - Pork and derivatives
-      - Alcohol
-      - Animal enzymes
-      - Gelatin sources
-      - E-numbers of animal origin
-      
-      Format response as JSON:
-      {
-        "halalStatus": "halal/haram/mashbooh/unknown",
-        "ingredients": ["parsed ingredients list"],
-        "riskyIngredients": ["list of potentially haram ingredients"],
-        "description": "detailed explanation with Islamic rulings",
-        "verification": "AI text analysis"
-      }`;
+    if (!ingredientsText) {
+      return res.status(400).json({ success: false, message: 'Ingredients text is required' });
     }
     
-    const geminiResponse = await analyzeWithGemini(prompt);
-    const analysis = JSON.parse(geminiResponse);
+    const prompt = `Analyze these ingredients and determine if product is halal or haram for Muslims:
+    "${ingredientsText}"
     
-    res.json({
-      success: true,
-      analysis
-    });
+    Pay special attention to:
+    - Pork and derivatives
+    - Alcohol
+    - Animal enzymes
+    - Gelatin sources
+    - E-numbers of animal origin
+    
+    Format response as JSON:
+    {
+      "halalStatus": "halal/haram/mashbooh/unknown",
+      "ingredients": ["parsed ingredients"],
+      "riskyIngredients": ["list of potentially haram ingredients"],
+      "description": "detailed explanation with Islamic rulings",
+      "verification": "AI text analysis"
+    }`;
+    
+    const geminiResponse = await analyzeWithGemini(prompt);
+    
+    try {
+      const analysis = JSON.parse(geminiResponse);
+      res.json({ success: true, analysis });
+    } catch (e) {
+      res.json({
+        success: true,
+        analysis: {
+          halalStatus: 'unknown',
+          description: geminiResponse,
+          verification: 'AI analysis'
+        }
+      });
+    }
   } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
+    console.error('Ingredients check error:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: error.message 
+    });
   }
 });
 
@@ -235,6 +192,10 @@ app.post('/api/ask-imam', async (req, res) => {
   try {
     const { question } = req.body;
     
+    if (!question) {
+      return res.status(400).json({ success: false, message: 'Question is required' });
+    }
+    
     const prompt = `You are an Islamic scholar (Imam) answering questions about Islam.
     Question: ${question}
     
@@ -242,7 +203,7 @@ app.post('/api/ask-imam', async (req, res) => {
     Include relevant Quranic verses and Hadith if applicable.
     If the question is about halal/haram food, provide specific rulings.
     
-    Format your response in Markdown with clear sections.`;
+    Keep response clear and organized.`;
     
     const response = await analyzeWithGemini(prompt);
     
@@ -251,14 +212,22 @@ app.post('/api/ask-imam', async (req, res) => {
       response
     });
   } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
+    console.error('Imam chat error:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: error.message 
+    });
   }
 });
 
-// Find Nearby Mosques
+// Find mosques and qibla direction
 app.post('/api/find-mosques', async (req, res) => {
   try {
     const { latitude, longitude } = req.body;
+    
+    if (!latitude || !longitude) {
+      return res.status(400).json({ success: false, message: 'Latitude and longitude are required' });
+    }
     
     const prompt = `Given coordinates latitude ${latitude}, longitude ${longitude},
     provide information about nearby mosques and Islamic centers.
@@ -281,111 +250,98 @@ app.post('/api/find-mosques', async (req, res) => {
       "nearbyMosques": [
         {
           "name": "mosque name",
-          "distance": "approx distance in km",
-          "address": "address if known"
+          "distance": "approx distance",
+          "address": "general address"
         }
       ],
       "instructions": "prayer and qibla instructions"
     }`;
     
-    const response = await analyzeWithGemini(prompt);
-    const mosqueInfo = JSON.parse(response);
+    const geminiResponse = await analyzeWithGemini(prompt);
     
-    res.json({
-      success: true,
-      ...mosqueInfo
-    });
-  } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
-  }
-});
-
-// Scanner Route
-app.post('/api/scan-product', async (req, res) => {
-  try {
-    const { barcode, imageBase64 } = req.body;
-    
-    if (barcode) {
-      // Handle barcode scan
-      return await handleBarcodeScan(req, res);
-    } else if (imageBase64) {
-      // Handle image scan
-      return await handleImageScan(req, res);
-    } else {
-      res.status(400).json({ success: false, message: 'No barcode or image provided' });
+    try {
+      const mosqueInfo = JSON.parse(geminiResponse);
+      res.json({ success: true, ...mosqueInfo });
+    } catch (e) {
+      res.json({
+        success: true,
+        location: { latitude, longitude },
+        qiblaDirection: "Calculate manually",
+        instructions: "Use compass app for Qibla direction"
+      });
     }
   } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
+    console.error('Mosque find error:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: error.message 
+    });
   }
 });
 
-async function handleBarcodeScan(req, res) {
-  const { barcode } = req.body;
-  
-  // Check database first
-  const product = await Product.findOne({ barcode });
-  if (product) {
-    return res.json({
-      success: true,
-      type: 'barcode',
-      product,
-      message: `Product: ${product.name}\nStatus: ${product.halalStatus.toUpperCase()}`
-    });
-  }
-  
-  // Use external API or Gemini for barcode lookup
-  const prompt = `Look up product with barcode ${barcode}. 
-  Provide product name and analyze if halal or haram for Muslims.
-  If unknown, say so.`;
-  
-  try {
-    const geminiResponse = await analyzeWithGemini(prompt);
-    const productInfo = {
-      barcode,
-      name: `Product ${barcode}`,
-      halalStatus: 'unknown',
-      description: geminiResponse
-    };
-    
-    res.json({
-      success: true,
-      type: 'barcode',
-      product: productInfo,
-      message: `Product found via AI analysis`
-    });
-  } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
-  }
-}
+// Simple authentication (for demo purposes)
+const users = {};
 
-async function handleImageScan(req, res) {
-  const { imageBase64 } = req.body;
+app.post('/api/register', (req, res) => {
+  const { username, password } = req.body;
   
-  const prompt = `Analyze this product image for halal/haram status.
-  Look at ingredients list, certifications (halal logos), and packaging.
-  Provide detailed analysis in JSON format.`;
-  
-  try {
-    const geminiResponse = await analyzeWithGemini(prompt);
-    const analysis = JSON.parse(geminiResponse);
-    
-    res.json({
-      success: true,
-      type: 'image',
-      analysis,
-      message: `Image analyzed: Status - ${analysis.halalStatus || 'unknown'}`
-    });
-  } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
+  if (!username || !password) {
+    return res.status(400).json({ success: false, message: 'Username and password required' });
   }
-}
+  
+  if (users[username]) {
+    return res.status(400).json({ success: false, message: 'User already exists' });
+  }
+  
+  users[username] = { password, createdAt: new Date() };
+  
+  res.json({ 
+    success: true, 
+    message: 'User registered successfully',
+    token: `demo-token-${username}`
+  });
+});
+
+app.post('/api/login', (req, res) => {
+  const { username, password } = req.body;
+  
+  if (!username || !password) {
+    return res.status(400).json({ success: false, message: 'Username and password required' });
+  }
+  
+  const user = users[username];
+  
+  if (!user || user.password !== password) {
+    return res.status(401).json({ success: false, message: 'Invalid credentials' });
+  }
+  
+  res.json({ 
+    success: true, 
+    message: 'Login successful',
+    token: `demo-token-${username}`
+  });
+});
+
+// Serve static files from public directory
+app.use(express.static(path.join(__dirname, 'public')));
 
 // Serve index.html for all other routes
 app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
+// Error handling middleware
+app.use((err, req, res, next) => {
+  console.error(err.stack);
+  res.status(500).json({ 
+    success: false, 
+    message: 'Something went wrong!',
+    error: process.env.NODE_ENV === 'development' ? err.message : undefined
+  });
+});
+
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
   console.log(`Available Gemini keys: ${geminiKeys.length}`);
+  console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
 });

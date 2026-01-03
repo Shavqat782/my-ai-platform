@@ -1,32 +1,6 @@
 // Global variables
 let currentUser = null;
-let barcodeScanner = null;
-let currentLocation = null;
 let scanHistory = JSON.parse(localStorage.getItem('scanHistory')) || [];
-
-// DOM Elements
-const authSection = document.getElementById('authSection');
-const scannerSection = document.getElementById('scannerSection');
-const barcodeInput = document.getElementById('barcodeInput');
-const ingredientsInput = document.getElementById('ingredientsInput');
-const questionInput = document.getElementById('questionInput');
-const resultsSection = document.getElementById('resultsSection');
-const resultCard = document.getElementById('resultCard');
-const productInfo = document.getElementById('productInfo');
-const halalStatus = document.getElementById('halalStatus');
-const ingredientsList = document.getElementById('ingredientsList');
-const explanation = document.getElementById('explanation');
-const statusIndicator = document.getElementById('statusIndicator');
-const chatMessages = document.getElementById('chatMessages');
-const locationInfo = document.getElementById('locationInfo');
-const qiblaCompass = document.getElementById('qiblaCompass');
-const compassArrow = document.getElementById('compassArrow');
-const compassDegree = document.getElementById('compassDegree');
-const qiblaInfo = document.getElementById('qiblaInfo');
-const mosquesList = document.getElementById('mosquesList');
-const historyList = document.getElementById('historyList');
-const uploadArea = document.getElementById('uploadArea');
-const imageUpload = document.getElementById('imageUpload');
 
 // API Base URL
 const API_BASE_URL = window.location.origin;
@@ -39,62 +13,56 @@ document.addEventListener('DOMContentLoaded', () => {
     // Check if user is already logged in
     const token = localStorage.getItem('token');
     if (token) {
-        verifyToken(token);
+        currentUser = { username: 'User' };
+        showScannerSection();
     }
 });
 
 // Event Listeners
 function setupEventListeners() {
     // Barcode scanner input
-    barcodeInput.addEventListener('keypress', (e) => {
-        if (e.key === 'Enter') {
-            scanBarcode();
-        }
-    });
+    const barcodeInput = document.getElementById('barcodeInput');
+    if (barcodeInput) {
+        barcodeInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                scanBarcode();
+            }
+        });
+    }
     
     // Image upload
-    uploadArea.addEventListener('click', () => {
-        imageUpload.click();
-    });
+    const imageUpload = document.getElementById('imageUpload');
+    const uploadArea = document.getElementById('uploadArea');
     
-    imageUpload.addEventListener('change', handleImageUpload);
-    
-    // Drag and drop for image upload
-    uploadArea.addEventListener('dragover', (e) => {
-        e.preventDefault();
-        uploadArea.style.borderColor = '#1a5fb4';
-        uploadArea.style.backgroundColor = '#f8f9ff';
-    });
-    
-    uploadArea.addEventListener('dragleave', () => {
-        uploadArea.style.borderColor = '#e0e0e0';
-        uploadArea.style.backgroundColor = '';
-    });
-    
-    uploadArea.addEventListener('drop', (e) => {
-        e.preventDefault();
-        uploadArea.style.borderColor = '#e0e0e0';
-        uploadArea.style.backgroundColor = '';
+    if (uploadArea && imageUpload) {
+        uploadArea.addEventListener('click', () => {
+            imageUpload.click();
+        });
         
-        const file = e.dataTransfer.files[0];
-        if (file && file.type.startsWith('image/')) {
-            processImage(file);
-        }
-    });
+        imageUpload.addEventListener('change', handleImageUpload);
+    }
     
     // Auto-detect location on mosque tab
-    document.querySelector('.tab[onclick*="mosque"]').addEventListener('click', () => {
-        if (!currentLocation) {
-            getLocation();
-        }
-    });
+    const mosqueTab = document.querySelector('.tab[onclick*="mosque"]');
+    if (mosqueTab) {
+        mosqueTab.addEventListener('click', () => {
+            if (!currentLocation) {
+                getLocation();
+            }
+        });
+    }
 }
 
 // Authentication Functions
 async function register() {
-    const username = document.getElementById('registerUsername').value;
-    const password = document.getElementById('registerPassword').value;
-    const confirmPassword = document.getElementById('confirmPassword').value;
+    const username = document.getElementById('registerUsername')?.value;
+    const password = document.getElementById('registerPassword')?.value;
+    const confirmPassword = document.getElementById('confirmPassword')?.value;
+    
+    if (!username || !password) {
+        showMessage('Введите имя пользователя и пароль', 'error');
+        return;
+    }
     
     if (password !== confirmPassword) {
         showMessage('Пароли не совпадают', 'error');
@@ -111,8 +79,10 @@ async function register() {
         const data = await response.json();
         
         if (data.success) {
-            showMessage('Регистрация успешна! Теперь войдите в систему.', 'success');
-            switchAuthTab('login');
+            localStorage.setItem('token', data.token);
+            currentUser = { username };
+            showScannerSection();
+            showMessage('Регистрация успешна!', 'success');
         } else {
             showMessage(data.message, 'error');
         }
@@ -122,8 +92,13 @@ async function register() {
 }
 
 async function login() {
-    const username = document.getElementById('loginUsername').value;
-    const password = document.getElementById('loginPassword').value;
+    const username = document.getElementById('loginUsername')?.value;
+    const password = document.getElementById('loginPassword')?.value;
+    
+    if (!username || !password) {
+        showMessage('Введите имя пользователя и пароль', 'error');
+        return;
+    }
     
     try {
         const response = await fetch(`${API_BASE_URL}/api/login`, {
@@ -147,37 +122,13 @@ async function login() {
     }
 }
 
-async function verifyToken(token) {
-    try {
-        // Simple token verification by trying to access protected endpoint
-        const response = await fetch(`${API_BASE_URL}/api/check-barcode`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${token}`
-            },
-            body: JSON.stringify({ barcode: 'test' })
-        });
-        
-        if (response.status !== 401) {
-            currentUser = { username: 'User' };
-            showScannerSection();
-        }
-    } catch (error) {
-        // Token invalid or expired
-        localStorage.removeItem('token');
-    }
-}
-
-function logout() {
-    localStorage.removeItem('token');
-    currentUser = null;
-    checkAuthStatus();
-    showMessage('Вы вышли из системы', 'success');
-}
-
 // UI Navigation Functions
 function checkAuthStatus() {
+    const authSection = document.getElementById('authSection');
+    const scannerSection = document.getElementById('scannerSection');
+    
+    if (!authSection || !scannerSection) return;
+    
     if (currentUser) {
         authSection.style.display = 'none';
         scannerSection.style.display = 'block';
@@ -188,8 +139,12 @@ function checkAuthStatus() {
 }
 
 function showScannerSection() {
-    authSection.style.display = 'none';
-    scannerSection.style.display = 'block';
+    const authSection = document.getElementById('authSection');
+    const scannerSection = document.getElementById('scannerSection');
+    
+    if (authSection) authSection.style.display = 'none';
+    if (scannerSection) scannerSection.style.display = 'block';
+    
     switchTab('scanner');
 }
 
@@ -198,11 +153,15 @@ function switchAuthTab(tab) {
     document.querySelectorAll('.auth-form').forEach(f => f.style.display = 'none');
     
     if (tab === 'login') {
-        document.querySelector('.auth-tab[onclick*="login"]').classList.add('active');
-        document.getElementById('loginForm').style.display = 'flex';
+        const loginTab = document.querySelector('.auth-tab[onclick*="login"]');
+        const loginForm = document.getElementById('loginForm');
+        if (loginTab) loginTab.classList.add('active');
+        if (loginForm) loginForm.style.display = 'flex';
     } else {
-        document.querySelector('.auth-tab[onclick*="register"]').classList.add('active');
-        document.getElementById('registerForm').style.display = 'flex';
+        const registerTab = document.querySelector('.auth-tab[onclick*="register"]');
+        const registerForm = document.getElementById('registerForm');
+        if (registerTab) registerTab.classList.add('active');
+        if (registerForm) registerForm.style.display = 'flex';
     }
 }
 
@@ -212,22 +171,24 @@ function switchTab(tabName) {
     document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
     
     // Activate selected tab
-    document.querySelector(`.tab[onclick*="${tabName}"]`).classList.add('active');
-    document.getElementById(`${tabName}Tab`).classList.add('active');
+    const selectedTab = document.querySelector(`.tab[onclick*="${tabName}"]`);
+    const selectedContent = document.getElementById(`${tabName}Tab`);
+    
+    if (selectedTab) selectedTab.classList.add('active');
+    if (selectedContent) selectedContent.classList.add('active');
     
     // Load content for specific tabs
     if (tabName === 'history') {
         loadHistory();
     } else if (tabName === 'mosque') {
-        if (!currentLocation) {
-            getLocation();
-        }
+        getLocation();
     }
 }
 
 // Barcode Scanner Functions
 async function scanBarcode() {
-    const barcode = barcodeInput.value.trim();
+    const barcodeInput = document.getElementById('barcodeInput');
+    const barcode = barcodeInput?.value.trim();
     
     if (!barcode) {
         showMessage('Введите штрих-код', 'error');
@@ -240,8 +201,7 @@ async function scanBarcode() {
         const response = await fetch(`${API_BASE_URL}/api/check-barcode`, {
             method: 'POST',
             headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${localStorage.getItem('token') || ''}`
+                'Content-Type': 'application/json'
             },
             body: JSON.stringify({ barcode })
         });
@@ -249,7 +209,7 @@ async function scanBarcode() {
         const data = await response.json();
         
         if (data.success) {
-            displayScanResult(data.product, data.source);
+            displayScanResult(data.product);
             
             // Add to history
             addToHistory({
@@ -266,87 +226,6 @@ async function scanBarcode() {
     }
 }
 
-function startBarcodeScanner() {
-    if (!('Quagga' in window)) {
-        showMessage('Библиотека сканера не загружена', 'error');
-        return;
-    }
-    
-    const video = document.getElementById('scannerVideo');
-    const canvas = document.getElementById('scannerCanvas');
-    const placeholder = document.querySelector('.camera-placeholder');
-    
-    placeholder.style.display = 'none';
-    video.style.display = 'block';
-    
-    Quagga.init({
-        inputStream: {
-            name: "Live",
-            type: "LiveStream",
-            target: video,
-            constraints: {
-                facingMode: "environment"
-            }
-        },
-        decoder: {
-            readers: [
-                "ean_reader",
-                "ean_8_reader",
-                "code_128_reader",
-                "code_39_reader",
-                "upc_reader",
-                "upc_e_reader"
-            ]
-        }
-    }, function(err) {
-        if (err) {
-            console.error(err);
-            showMessage('Ошибка инициализации сканера', 'error');
-            return;
-        }
-        
-        Quagga.start();
-        
-        // Add frame processor
-        Quagga.onProcessed(function(result) {
-            if (result) {
-                const ctx = canvas.getContext('2d');
-                canvas.width = video.videoWidth;
-                canvas.height = video.videoHeight;
-                ctx.drawImage(video, 0, 0);
-                
-                if (result.boxes) {
-                    ctx.strokeStyle = '#00ff00';
-                    ctx.lineWidth = 3;
-                    result.boxes.forEach(box => {
-                        ctx.strokeRect(box[0], box[1], box[2] - box[0], box[3] - box[1]);
-                    });
-                }
-            }
-        });
-        
-        // Detect barcode
-        Quagga.onDetected(function(result) {
-            const code = result.codeResult.code;
-            barcodeInput.value = code;
-            stopBarcodeScanner();
-            scanBarcode();
-        });
-    });
-}
-
-function stopBarcodeScanner() {
-    if (Quagga) {
-        Quagga.stop();
-    }
-    
-    const video = document.getElementById('scannerVideo');
-    const placeholder = document.querySelector('.camera-placeholder');
-    
-    video.style.display = 'none';
-    placeholder.style.display = 'block';
-}
-
 // Image Processing Functions
 function handleImageUpload(event) {
     const file = event.target.files[0];
@@ -356,108 +235,39 @@ function handleImageUpload(event) {
 }
 
 async function processImage(file) {
-    showLoading('Анализ изображения...');
+    showLoading('Чтение изображения...');
     
     const reader = new FileReader();
     reader.onload = async (e) => {
-        const imageBase64 = e.target.result.split(',')[1];
+        // For simplicity, we'll extract text from image using OCR prompt
+        // In real implementation, you would send image to server
+        const ingredientsText = prompt("Введите состав продукта с изображения:");
         
-        try {
-            const response = await fetch(`${API_BASE_URL}/api/check-ingredients`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${localStorage.getItem('token') || ''}`
-                },
-                body: JSON.stringify({ imageBase64 })
+        if (ingredientsText) {
+            checkIngredients(ingredientsText);
+            
+            // Add to history
+            addToHistory({
+                type: 'image',
+                filename: file.name,
+                timestamp: new Date().toISOString()
             });
-            
-            const data = await response.json();
-            
-            if (data.success) {
-                displayImageAnalysisResult(data.analysis);
-                
-                // Add to history
-                addToHistory({
-                    type: 'image',
-                    analysis: data.analysis,
-                    timestamp: new Date().toISOString()
-                });
-            } else {
-                showMessage(data.message, 'error');
-            }
-        } catch (error) {
-            showMessage('Ошибка при анализе изображения', 'error');
         }
     };
     
     reader.readAsDataURL(file);
 }
 
-async function captureImage() {
-    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-        showMessage('Камера не доступна', 'error');
-        return;
-    }
-    
-    try {
-        const stream = await navigator.mediaDevices.getUserMedia({ 
-            video: { facingMode: 'environment' } 
-        });
-        
-        const video = document.createElement('video');
-        video.srcObject = stream;
-        await video.play();
-        
-        // Create canvas and capture image
-        const canvas = document.createElement('canvas');
-        canvas.width = video.videoWidth;
-        canvas.height = video.videoHeight;
-        const ctx = canvas.getContext('2d');
-        ctx.drawImage(video, 0, 0);
-        
-        // Stop video stream
-        stream.getTracks().forEach(track => track.stop());
-        
-        // Convert to base64 and process
-        const imageBase64 = canvas.toDataURL('image/jpeg').split(',')[1];
-        
-        showLoading('Анализ фотографии...');
-        
-        const response = await fetch(`${API_BASE_URL}/api/check-ingredients`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${localStorage.getItem('token') || ''}`
-            },
-            body: JSON.stringify({ imageBase64 })
-        });
-        
-        const data = await response.json();
-        
-        if (data.success) {
-            displayImageAnalysisResult(data.analysis);
-            
-            // Add to history
-            addToHistory({
-                type: 'image',
-                analysis: data.analysis,
-                timestamp: new Date().toISOString()
-            });
-        } else {
-            showMessage(data.message, 'error');
-        }
-        
-    } catch (error) {
-        showMessage('Ошибка при использовании камеры', 'error');
-    }
-}
-
 // Ingredients Check
-async function checkIngredients() {
-    const text = ingredientsInput.value.trim();
+async function checkIngredients(text = null) {
+    let ingredientsText = text;
     
-    if (!text) {
+    if (!ingredientsText) {
+        const ingredientsInput = document.getElementById('ingredientsInput');
+        ingredientsText = ingredientsInput?.value.trim();
+    }
+    
+    if (!ingredientsText) {
         showMessage('Введите состав продукта', 'error');
         return;
     }
@@ -468,21 +278,20 @@ async function checkIngredients() {
         const response = await fetch(`${API_BASE_URL}/api/check-ingredients`, {
             method: 'POST',
             headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${localStorage.getItem('token') || ''}`
+                'Content-Type': 'application/json'
             },
-            body: JSON.stringify({ ingredientsText: text })
+            body: JSON.stringify({ ingredientsText })
         });
         
         const data = await response.json();
         
         if (data.success) {
-            displayIngredientsAnalysisResult(data.analysis);
+            displayIngredientsAnalysisResult(data.analysis, ingredientsText);
             
             // Add to history
             addToHistory({
                 type: 'text',
-                text,
+                text: ingredientsText,
                 analysis: data.analysis,
                 timestamp: new Date().toISOString()
             });
@@ -495,118 +304,118 @@ async function checkIngredients() {
 }
 
 // Display Results Functions
-function displayScanResult(product, source) {
+function displayScanResult(product) {
     updateStatusIndicator(product.halalStatus);
     
-    productInfo.innerHTML = `
-        <h4>${product.name || 'Неизвестный продукт'}</h4>
-        <p><strong>Штрих-код:</strong> ${product.barcode}</p>
-        <p><strong>Источник:</strong> ${source === 'database' ? 'База данных' : 'AI анализ'}</p>
-        <p><strong>Бренд:</strong> ${product.brand || 'Не указан'}</p>
-    `;
+    const productInfo = document.getElementById('productInfo');
+    const halalStatus = document.getElementById('halalStatus');
+    const ingredientsList = document.getElementById('ingredientsList');
+    const explanation = document.getElementById('explanation');
+    
+    if (productInfo) {
+        productInfo.innerHTML = `
+            <h4>${product.name || 'Неизвестный продукт'}</h4>
+            <p><strong>Штрих-код:</strong> ${product.barcode}</p>
+            <p><strong>Источник:</strong> AI анализ</p>
+        `;
+    }
     
     updateHalalStatus(product.halalStatus);
     
-    if (product.ingredients && product.ingredients.length > 0) {
-        ingredientsList.innerHTML = `
-            <h4>Состав:</h4>
-            <ul>${product.ingredients.map(ing => `<li>${ing}</li>`).join('')}</ul>
-        `;
-    } else {
-        ingredientsList.innerHTML = `
-            <h4>Состав:</h4>
-            <p>Не указан</p>
+    if (ingredientsList) {
+        if (product.ingredients && product.ingredients.length > 0) {
+            ingredientsList.innerHTML = `
+                <h4>Состав:</h4>
+                <ul>${product.ingredients.map(ing => `<li>${ing}</li>`).join('')}</ul>
+            `;
+        } else {
+            ingredientsList.innerHTML = `
+                <h4>Состав:</h4>
+                <p>Не указан</p>
+            `;
+        }
+    }
+    
+    if (explanation) {
+        explanation.innerHTML = `
+            <h4>Объяснение:</h4>
+            <p>${product.description || 'Нет дополнительной информации'}</p>
+            ${product.verification ? `<p><em>${product.verification}</em></p>` : ''}
         `;
     }
     
-    explanation.innerHTML = `
-        <h4>Объяснение:</h4>
-        <p>${product.description || 'Нет дополнительной информации'}</p>
-        ${product.verification ? `<p><em>${product.verification}</em></p>` : ''}
-    `;
-    
-    resultsSection.scrollIntoView({ behavior: 'smooth' });
+    const resultsSection = document.getElementById('resultsSection');
+    if (resultsSection) {
+        resultsSection.scrollIntoView({ behavior: 'smooth' });
+    }
 }
 
-function displayImageAnalysisResult(analysis) {
+function displayIngredientsAnalysisResult(analysis, originalText) {
     updateStatusIndicator(analysis.halalStatus);
     
-    productInfo.innerHTML = `
-        <h4>${analysis.name || 'Продукт на фото'}</h4>
-        <p><strong>Тип анализа:</strong> Анализ изображения</p>
-    `;
+    const productInfo = document.getElementById('productInfo');
+    const ingredientsList = document.getElementById('ingredientsList');
+    const explanation = document.getElementById('explanation');
     
-    updateHalalStatus(analysis.halalStatus);
-    
-    if (analysis.ingredients && analysis.ingredients.length > 0) {
-        ingredientsList.innerHTML = `
-            <h4>Обнаруженные ингредиенты:</h4>
-            <ul>${analysis.ingredients.slice(0, 10).map(ing => `<li>${ing}</li>`).join('')}</ul>
+    if (productInfo) {
+        productInfo.innerHTML = `
+            <h4>Анализ текстового состава</h4>
+            <p><strong>Тип анализа:</strong> Текстовый анализ</p>
         `;
     }
     
-    explanation.innerHTML = `
-        <h4>Анализ:</h4>
-        <p>${analysis.description || 'Нет дополнительной информации'}</p>
-        ${analysis.riskyIngredients ? `
-            <h4>Рискованные ингредиенты:</h4>
-            <ul>${analysis.riskyIngredients.map(ing => `<li class="danger">${ing}</li>`).join('')}</ul>
-        ` : ''}
-    `;
-    
-    resultsSection.scrollIntoView({ behavior: 'smooth' });
-}
-
-function displayIngredientsAnalysisResult(analysis) {
-    updateStatusIndicator(analysis.halalStatus);
-    
-    productInfo.innerHTML = `
-        <h4>Анализ текстового состава</h4>
-        <p><strong>Тип анализа:</strong> Текстовый анализ</p>
-    `;
-    
     updateHalalStatus(analysis.halalStatus);
     
-    ingredientsList.innerHTML = `
-        <h4>Проанализированные ингредиенты:</h4>
-        <p>${ingredientsInput.value.substring(0, 200)}...</p>
-    `;
+    if (ingredientsList) {
+        ingredientsList.innerHTML = `
+            <h4>Проанализированные ингредиенты:</h4>
+            <p>${originalText.substring(0, 200)}${originalText.length > 200 ? '...' : ''}</p>
+        `;
+    }
     
-    explanation.innerHTML = `
-        <h4>Анализ:</h4>
-        <p>${analysis.description || 'Нет дополнительной информации'}</p>
-        ${analysis.riskyIngredients && analysis.riskyIngredients.length > 0 ? `
-            <h4>Потенциально харам ингредиенты:</h4>
-            <ul>${analysis.riskyIngredients.map(ing => `<li class="danger">${ing}</li>`).join('')}</ul>
-        ` : ''}
-    `;
-    
-    resultsSection.scrollIntoView({ behavior: 'smooth' });
+    if (explanation) {
+        explanation.innerHTML = `
+            <h4>Анализ:</h4>
+            <p>${analysis.description || 'Нет дополнительной информации'}</p>
+            ${analysis.riskyIngredients && analysis.riskyIngredients.length > 0 ? `
+                <h4>Потенциально харам ингредиенты:</h4>
+                <ul>${analysis.riskyIngredients.map(ing => `<li class="danger">${ing}</li>`).join('')}</ul>
+            ` : ''}
+        `;
+    }
 }
 
 function updateStatusIndicator(status) {
+    const statusIndicator = document.getElementById('statusIndicator');
+    if (!statusIndicator) return;
+    
     const statusDot = statusIndicator.querySelector('.status-dot');
     const statusText = statusIndicator.querySelector('.status-text');
     
-    statusDot.className = 'status-dot';
-    statusText.textContent = status.toUpperCase();
+    if (statusDot) statusDot.className = 'status-dot';
+    if (statusText) statusText.textContent = status ? status.toUpperCase() : 'ОЖИДАНИЕ';
     
-    switch(status) {
-        case 'halal':
-            statusDot.classList.add('online');
-            break;
-        case 'haram':
-            statusDot.classList.add('offline');
-            break;
-        case 'mashbooh':
-            statusDot.classList.add('warning');
-            break;
-        default:
-            statusDot.style.background = '#808080';
+    if (statusDot) {
+        switch(status) {
+            case 'halal':
+                statusDot.classList.add('online');
+                break;
+            case 'haram':
+                statusDot.classList.add('offline');
+                break;
+            case 'mashbooh':
+                statusDot.classList.add('warning');
+                break;
+            default:
+                statusDot.style.background = '#808080';
+        }
     }
 }
 
 function updateHalalStatus(status) {
+    const halalStatus = document.getElementById('halalStatus');
+    if (!halalStatus) return;
+    
     halalStatus.className = 'halal-status';
     
     let icon, text, additionalClass;
@@ -643,7 +452,8 @@ function updateHalalStatus(status) {
 
 // Chat with Imam Functions
 async function askImam() {
-    const question = questionInput.value.trim();
+    const questionInput = document.getElementById('questionInput');
+    const question = questionInput?.value.trim();
     
     if (!question) {
         showMessage('Введите ваш вопрос', 'error');
@@ -652,7 +462,7 @@ async function askImam() {
     
     // Add user message to chat
     addChatMessage(question, 'user');
-    questionInput.value = '';
+    if (questionInput) questionInput.value = '';
     
     // Show loading
     const loadingId = addLoadingMessage();
@@ -661,8 +471,7 @@ async function askImam() {
         const response = await fetch(`${API_BASE_URL}/api/ask-imam`, {
             method: 'POST',
             headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${localStorage.getItem('token') || ''}`
+                'Content-Type': 'application/json'
             },
             body: JSON.stringify({ question })
         });
@@ -683,10 +492,16 @@ async function askImam() {
     }
     
     // Scroll to bottom of chat
-    chatMessages.scrollTop = chatMessages.scrollHeight;
+    const chatMessages = document.getElementById('chatMessages');
+    if (chatMessages) {
+        chatMessages.scrollTop = chatMessages.scrollHeight;
+    }
 }
 
 function addChatMessage(content, sender) {
+    const chatMessages = document.getElementById('chatMessages');
+    if (!chatMessages) return;
+    
     const messageDiv = document.createElement('div');
     messageDiv.className = `message ${sender}`;
     
@@ -703,6 +518,9 @@ function addChatMessage(content, sender) {
 }
 
 function addLoadingMessage() {
+    const chatMessages = document.getElementById('chatMessages');
+    if (!chatMessages) return null;
+    
     const id = 'loading-' + Date.now();
     const loadingDiv = document.createElement('div');
     loadingDiv.id = id;
@@ -731,15 +549,21 @@ function removeLoadingMessage(id) {
 // Location and Mosque Functions
 function getLocation() {
     if (!navigator.geolocation) {
-        locationInfo.innerHTML = '<p class="error">Геолокация не поддерживается вашим браузером</p>';
+        const locationInfo = document.getElementById('locationInfo');
+        if (locationInfo) {
+            locationInfo.innerHTML = '<p class="error">Геолокация не поддерживается вашим браузером</p>';
+        }
         return;
     }
     
-    locationInfo.innerHTML = '<p><i class="fas fa-sync-alt fa-spin"></i> Определение местоположения...</p>';
+    const locationInfo = document.getElementById('locationInfo');
+    if (locationInfo) {
+        locationInfo.innerHTML = '<p><i class="fas fa-sync-alt fa-spin"></i> Определение местоположения...</p>';
+    }
     
     navigator.geolocation.getCurrentPosition(
         async (position) => {
-            currentLocation = {
+            const currentLocation = {
                 latitude: position.coords.latitude,
                 longitude: position.coords.longitude
             };
@@ -761,20 +585,28 @@ function getLocation() {
                     message = 'Время ожидания истекло';
                     break;
             }
-            locationInfo.innerHTML = `<p class="error">${message}</p>`;
+            if (locationInfo) {
+                locationInfo.innerHTML = `<p class="error">${message}</p>`;
+            }
         }
     );
 }
 
 function displayLocationInfo(location) {
-    locationInfo.innerHTML = `
-        <p><strong>Широта:</strong> ${location.latitude.toFixed(6)}</p>
-        <p><strong>Долгота:</strong> ${location.longitude.toFixed(6)}</p>
-        <p><i class="fas fa-check-circle success"></i> Местоположение определено</p>
-    `;
+    const locationInfo = document.getElementById('locationInfo');
+    if (locationInfo) {
+        locationInfo.innerHTML = `
+            <p><strong>Широта:</strong> ${location.latitude.toFixed(6)}</p>
+            <p><strong>Долгота:</strong> ${location.longitude.toFixed(6)}</p>
+            <p><i class="fas fa-check-circle success"></i> Местоположение определено</p>
+        `;
+    }
 }
 
 async function findNearbyMosques(location) {
+    const mosquesList = document.getElementById('mosquesList');
+    if (!mosquesList) return;
+    
     mosquesList.innerHTML = `
         <div class="loading">
             <i class="fas fa-spinner fa-spin"></i>
@@ -786,8 +618,7 @@ async function findNearbyMosques(location) {
         const response = await fetch(`${API_BASE_URL}/api/find-mosques`, {
             method: 'POST',
             headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${localStorage.getItem('token') || ''}`
+                'Content-Type': 'application/json'
             },
             body: JSON.stringify(location)
         });
@@ -795,25 +626,21 @@ async function findNearbyMosques(location) {
         const data = await response.json();
         
         if (data.success) {
-            displayMosques(data.nearbyMosques);
-            
-            if (data.instructions) {
-                const instructionsDiv = document.createElement('div');
-                instructionsDiv.className = 'instructions';
-                instructionsDiv.innerHTML = `<p>${data.instructions}</p>`;
-                mosquesList.appendChild(instructionsDiv);
-            }
+            displayMosques(data.nearbyMosques || []);
         } else {
-            mosquesList.innerHTML = `<p class="error">Не удалось найти мечети: ${data.message}</p>`;
+            mosquesList.innerHTML = `<p>Используйте карты для поиска ближайших мечетей</p>`;
         }
     } catch (error) {
-        mosquesList.innerHTML = '<p class="error">Ошибка при поиске мечетей</p>';
+        mosquesList.innerHTML = '<p>Используйте Google Maps для поиска мечетей</p>';
     }
 }
 
 function displayMosques(mosques) {
+    const mosquesList = document.getElementById('mosquesList');
+    if (!mosquesList) return;
+    
     if (!mosques || mosques.length === 0) {
-        mosquesList.innerHTML = '<p>Мечети не найдены поблизости</p>';
+        mosquesList.innerHTML = '<p>Используйте карты для поиска мечетей</p>';
         return;
     }
     
@@ -824,11 +651,11 @@ function displayMosques(mosques) {
         mosqueDiv.className = 'mosque-item';
         mosqueDiv.innerHTML = `
             <div>
-                <h4>${mosque.name}</h4>
+                <h4>${mosque.name || 'Мечеть'}</h4>
                 <p>${mosque.address || 'Адрес не указан'}</p>
             </div>
             <div class="mosque-distance">
-                <span class="distance-badge">${mosque.distance || '?'}</span>
+                <span class="distance-badge">${mosque.distance || 'рядом'}</span>
             </div>
         `;
         
@@ -837,8 +664,7 @@ function displayMosques(mosques) {
 }
 
 function calculateQiblaDirection(location) {
-    // Simple Qibla calculation (for demonstration)
-    // In production, use accurate spherical trigonometry
+    // Simple Qibla calculation
     const meccaLat = 21.4225;
     const meccaLng = 39.8262;
     
@@ -861,20 +687,29 @@ function calculateQiblaDirection(location) {
 
 function displayQiblaDirection(degrees) {
     // Update compass arrow
-    compassArrow.style.transform = `translate(-50%, -50%) rotate(${degrees}deg)`;
-    compassDegree.textContent = `${Math.round(degrees)}°`;
+    const compassArrow = document.getElementById('compassArrow');
+    const compassDegree = document.getElementById('compassDegree');
+    const qiblaInfo = document.getElementById('qiblaInfo');
     
-    // Update direction info
-    const direction = getDirectionFromDegrees(degrees);
-    qiblaInfo.innerHTML = `
-        <p><strong>Направление Киблы:</strong> ${Math.round(degrees)}° (${direction})</p>
-        <p><strong>Относительно севера:</strong> Поверните на ${Math.round(degrees)}° по часовой стрелке от севера</p>
-        <p><i class="fas fa-lightbulb"></i> Используйте компас на телефоне или приложение для точного определения</p>
-    `;
+    if (compassArrow) {
+        compassArrow.style.transform = `translate(-50%, -50%) rotate(${degrees}deg)`;
+    }
+    
+    if (compassDegree) {
+        compassDegree.textContent = `${Math.round(degrees)}°`;
+    }
+    
+    if (qiblaInfo) {
+        const direction = getDirectionFromDegrees(degrees);
+        qiblaInfo.innerHTML = `
+            <p><strong>Направление Киблы:</strong> ${Math.round(degrees)}° (${direction})</p>
+            <p><strong>Относительно севера:</strong> Поверните на ${Math.round(degrees)}° по часовой стрелке от севера</p>
+        `;
+    }
 }
 
 function getDirectionFromDegrees(degrees) {
-    const directions = ['Север', 'Северо-восток', 'Восток', 'Юго-восток', 'Юг', 'Юго-запад', 'Запад', 'Северо-запад'];
+    const directions = ['С', 'СВ', 'В', 'ЮВ', 'Ю', 'ЮЗ', 'З', 'СЗ'];
     const index = Math.round(degrees / 45) % 8;
     return directions[index];
 }
@@ -882,18 +717,22 @@ function getDirectionFromDegrees(degrees) {
 // History Functions
 function addToHistory(item) {
     scanHistory.unshift(item);
-    if (scanHistory.length > 50) {
-        scanHistory = scanHistory.slice(0, 50);
+    if (scanHistory.length > 20) {
+        scanHistory = scanHistory.slice(0, 20);
     }
     localStorage.setItem('scanHistory', JSON.stringify(scanHistory));
     
     // Update history tab if active
-    if (document.getElementById('historyTab').classList.contains('active')) {
+    const historyTab = document.getElementById('historyTab');
+    if (historyTab && historyTab.classList.contains('active')) {
         loadHistory();
     }
 }
 
 function loadHistory() {
+    const historyList = document.getElementById('historyList');
+    if (!historyList) return;
+    
     if (scanHistory.length === 0) {
         historyList.innerHTML = `
             <div class="empty-history">
@@ -934,8 +773,7 @@ function loadHistory() {
                     </div>
                     <div class="history-content">
                         <h4>Анализ изображения</h4>
-                        <p>Статус: ${item.analysis?.halalStatus?.toUpperCase() || 'НЕИЗВЕСТНО'}</p>
-                        <p class="history-status ${item.analysis?.halalStatus}">${item.analysis?.halalStatus?.toUpperCase() || 'НЕИЗВЕСТНО'}</p>
+                        <p>${item.filename || 'Изображение'}</p>
                         <p class="history-date">${date}</p>
                     </div>
                 `;
@@ -971,10 +809,6 @@ function clearHistory() {
 
 // Utility Functions
 function showMessage(message, type = 'info') {
-    // Remove existing messages
-    const existingMessages = document.querySelectorAll('.message-popup');
-    existingMessages.forEach(msg => msg.remove());
-    
     // Create new message
     const messageDiv = document.createElement('div');
     messageDiv.className = `message-popup ${type}`;
@@ -986,65 +820,65 @@ function showMessage(message, type = 'info') {
     // Add to body
     document.body.appendChild(messageDiv);
     
-    // Position and animate
-    messageDiv.style.position = 'fixed';
-    messageDiv.style.top = '20px';
-    messageDiv.style.right = '20px';
-    messageDiv.style.padding = '15px 20px';
-    messageDiv.style.borderRadius = '8px';
-    messageDiv.style.boxShadow = '0 4px 12px rgba(0,0,0,0.15)';
-    messageDiv.style.zIndex = '1000';
-    messageDiv.style.display = 'flex';
-    messageDiv.style.alignItems = 'center';
-    messageDiv.style.gap = '10px';
-    messageDiv.style.fontWeight = '500';
-    
-    if (type === 'error') {
-        messageDiv.style.background = 'linear-gradient(135deg, #ff6b6b, #ee5a52)';
-        messageDiv.style.color = 'white';
-    } else if (type === 'success') {
-        messageDiv.style.background = 'linear-gradient(135deg, #2ec27e, #26a269)';
-        messageDiv.style.color = 'white';
-    } else {
-        messageDiv.style.background = 'white';
-        messageDiv.style.color = '#333';
-        messageDiv.style.border = '2px solid #1a5fb4';
-    }
+    // Style
+    messageDiv.style.cssText = `
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        padding: 15px 20px;
+        border-radius: 8px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        z-index: 1000;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        font-weight: 500;
+        background: ${type === 'error' ? 'linear-gradient(135deg, #ff6b6b, #ee5a52)' : 
+                    type === 'success' ? 'linear-gradient(135deg, #2ec27e, #26a269)' : 'white'};
+        color: ${type === 'error' || type === 'success' ? 'white' : '#333'};
+        border: ${type === 'info' ? '2px solid #1a5fb4' : 'none'};
+    `;
     
     // Remove after 5 seconds
     setTimeout(() => {
-        if (messageDiv.parentNode) {
-            messageDiv.style.opacity = '0';
-            messageDiv.style.transform = 'translateY(-20px)';
-            messageDiv.style.transition = 'all 0.3s ease';
-            
-            setTimeout(() => {
-                if (messageDiv.parentNode) {
-                    messageDiv.parentNode.removeChild(messageDiv);
-                }
-            }, 300);
-        }
+        messageDiv.style.opacity = '0';
+        messageDiv.style.transform = 'translateY(-20px)';
+        messageDiv.style.transition = 'all 0.3s ease';
+        
+        setTimeout(() => {
+            if (messageDiv.parentNode) {
+                messageDiv.parentNode.removeChild(messageDiv);
+            }
+        }, 300);
     }, 5000);
 }
 
 function showLoading(message) {
     updateStatusIndicator('unknown');
-    statusIndicator.querySelector('.status-text').textContent = message;
     
-    resultCard.style.opacity = '0.7';
+    const statusIndicator = document.getElementById('statusIndicator');
+    if (statusIndicator) {
+        const statusText = statusIndicator.querySelector('.status-text');
+        if (statusText) statusText.textContent = message;
+    }
+    
+    const resultCard = document.getElementById('resultCard');
+    if (resultCard) resultCard.style.opacity = '0.7';
     
     // Clear previous results
-    productInfo.innerHTML = '<p><i class="fas fa-spinner fa-spin"></i> ' + message + '</p>';
-    halalStatus.innerHTML = '<div class="loading"><i class="fas fa-spinner fa-spin"></i><p>Анализ...</p></div>';
-    ingredientsList.innerHTML = '<h4>Состав:</h4><p>Анализ...</p>';
-    explanation.innerHTML = '<h4>Объяснение:</h4><p>Подготовка результатов...</p>';
+    const productInfo = document.getElementById('productInfo');
+    const halalStatus = document.getElementById('halalStatus');
+    const ingredientsList = document.getElementById('ingredientsList');
+    const explanation = document.getElementById('explanation');
+    
+    if (productInfo) productInfo.innerHTML = '<p><i class="fas fa-spinner fa-spin"></i> ' + message + '</p>';
+    if (halalStatus) halalStatus.innerHTML = '<div class="loading"><i class="fas fa-spinner fa-spin"></i><p>Анализ...</p></div>';
+    if (ingredientsList) ingredientsList.innerHTML = '<h4>Состав:</h4><p>Анализ...</p>';
+    if (explanation) explanation.innerHTML = '<h4>Объяснение:</h4><p>Подготовка результатов...</p>';
 }
 
-// Export for global access
-window.startBarcodeScanner = startBarcodeScanner;
-window.stopBarcodeScanner = stopBarcodeScanner;
+// Make functions globally accessible
 window.scanBarcode = scanBarcode;
-window.captureImage = captureImage;
 window.checkIngredients = checkIngredients;
 window.askImam = askImam;
 window.getLocation = getLocation;
